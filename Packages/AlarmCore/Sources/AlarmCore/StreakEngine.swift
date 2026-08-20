@@ -46,6 +46,9 @@ public enum StreakEngine {
         case .completado:
             next.current += 1
             next.best = max(next.best, next.current)
+            // El acumulado de por vida solo sube aqui, y solo una vez por dia
+            // gracias al corte de idempotencia de arriba.
+            next.diasCompletadosTotales += 1
             resolved = .completado
 
         case .fallado(let reason), .salvadoPorVida(let reason):
