@@ -23,7 +23,7 @@ public struct GaleriaDeDiseno: View {
                     }
 
                     grupo("Pantallas") {
-                        enlace("Presentación", "hand.wave") { FlujoDeEntrada() }
+                        enlace("Presentación", "hand.wave") { FlujoDeEntrada(recordar: false) }
                         Raya()
                         enlace("Lista de alarmas", "alarm") { PantallaListaDeAlarmas() }
                         Raya()

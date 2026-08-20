@@ -10,30 +10,57 @@ import SwiftUI
 /// diferencia entre pasarse las tres paginas y saltarselas es lo que sabe el
 /// usuario, no donde acaba: si "Saltar" mandase a otro lado seria una trampa.
 ///
-/// **La presentacion vuelve a salir en cada arranque.** Aqui no se guarda que
-/// ya se ha visto porque eso es estado de verdad y vive en `Persistence`, no en
-/// una vista con datos de mentira. Cuando exista, esta vista lee esa bandera y
-/// se salta el paso.
+/// **La presentacion sale una vez y no vuelve.** La bandera va en
+/// `UserDefaults` y no en `Persistence` a proposito: "ya he visto la
+/// presentacion" no es estado de dominio — no entra en la racha, no tiene que
+/// migrar de esquema y perderlo cuesta exactamente tres pantallas. Meterlo en
+/// el almacen de las rachas seria darle un peso que no tiene.
 public struct FlujoDeEntrada: View {
-    @State private var presentacionHecha = false
+    @AppStorage(Self.bandera) private var vista = false
+    /// La salida de la galeria, que enseña el flujo sin dejar rastro.
+    @State private var vistaSoloAhora = false
 
-    public init() {}
+    private let recordar: Bool
+
+    /// - Parameter recordar: si es `false`, el flujo no escribe ni lee la
+    ///   bandera. Es lo que usa la galeria de diseño: alli la presentacion hay
+    ///   que poder verla las veces que haga falta, y verla no es haberla
+    ///   pasado.
+    public init(recordar: Bool = true) {
+        self.recordar = recordar
+    }
+
+    /// La clave, en un sitio con nombre para que quien tenga que borrarla
+    /// —un boton de "volver a ver la presentacion" en ajustes, un reinicio de
+    /// pruebas— no la copie a mano y se equivoque en una letra.
+    public static let bandera = "reprise.presentacionVista"
+
+    private var yaPasada: Bool { recordar ? vista : vistaSoloAhora }
 
     public var body: some View {
         ZStack {
-            if presentacionHecha {
+            if yaPasada {
                 NavegacionPrincipal()
                     .transition(.opacity)
             } else {
-                PantallaPresentacion {
-                    withAnimation(.easeInOut(duration: 0.35)) { presentacionHecha = true }
-                }
-                .transition(.opacity)
+                PantallaPresentacion(alTerminar: pasar)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private func pasar() {
+        withAnimation(.easeInOut(duration: 0.35)) {
+            if recordar {
+                vista = true
+            } else {
+                vistaSoloAhora = true
             }
         }
     }
 }
 
 #Preview("Entrada") {
-    FlujoDeEntrada().preferredColorScheme(.dark)
+    // Sin recordar: si no, el preview solo se veria una vez por simulador.
+    FlujoDeEntrada(recordar: false).preferredColorScheme(.dark)
 }
