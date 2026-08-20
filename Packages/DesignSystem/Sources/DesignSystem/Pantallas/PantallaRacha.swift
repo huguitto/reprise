@@ -20,7 +20,7 @@ public struct PantallaRacha: View {
         self.vidas = vidas
     }
 
-    private var nivel: FichaDeNivel { DatosDeMentira.nivel(paraRacha: racha) }
+    private var nivel: Nivel { Niveles.nivel(racha: racha) }
 
     public var body: some View {
         ScrollView {
@@ -74,8 +74,8 @@ public struct PantallaRacha: View {
                 Spacer()
             }
             BarraDeProgreso(progreso: nivel.progreso(conRacha: racha))
-            if let hasta = nivel.hasta {
-                Text("Faltan \(hasta - racha) días para el nivel \(nivel.numero + 1).")
+            if nivel.hasta != nil {
+                Text("Faltan \(nivel.diasQueFaltan(conRacha: racha)) días para el nivel \(nivel.numero + 1).")
                     .font(Tipografia.pie)
                     .foregroundStyle(Paleta.textoSuave)
             } else {
@@ -135,9 +135,12 @@ public struct PantallaRacha: View {
                 .padding(.horizontal, Espacio.margen + Espacio.mini)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: Espacio.normal) {
-                    ForEach(DatosDeMentira.insignias) { ficha in
-                        SelloDeInsignia(simbolo: ficha.simbolo, nombre: ficha.nombre,
-                                 conseguida: ficha.conseguida)
+                    ForEach(Insignia.allCases) { insignia in
+                        SelloDeInsignia(
+                            simbolo: insignia.simbolo,
+                            nombre: insignia.nombre,
+                            conseguida: insignia.concedida(DatosDeMentira.estadoDeRacha)
+                        )
                     }
                 }
                 .padding(.horizontal, Espacio.margen)
