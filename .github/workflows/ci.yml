@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dominio:
+    name: Tests del dominio
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests de AlarmCore
+        # Corren en el host, sin simulador: segundos en vez de minutos.
+        run: cd Packages/AlarmCore && swift test
+
+  compila:
+    name: Compila para iOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: tuist/tuist-action@v1
+        with:
+          command: generate
+          arguments: --no-open
+      - name: Build
+        run: |
+          xcodebuild -workspace RepRise.xcworkspace -scheme RepRise \
+            -destination 'generic/platform=iOS Simulator' -quiet build

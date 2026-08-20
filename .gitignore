@@ -1,0 +1,19 @@
+# Tuist genera el proyecto: no se versiona, es el punto entero de usarlo.
+*.xcodeproj/
+*.xcworkspace/
+.build/
+DerivedData/
+Derived/
+*.xcuserdatad/
+xcuserdata/
+
+.DS_Store
+.swiftpm/
+Package.resolved
+
+# Secretos: claves de Supabase, perfiles de firma.
+.env
+*.p8
+*.p12
+*.mobileprovision
+Secrets.swift
