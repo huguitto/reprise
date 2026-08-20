@@ -9,8 +9,17 @@ import AlarmCore
 /// las once de la noche es la de manana.
 public struct PantallaListaDeAlarmas: View {
     @State private var alarmas = DatosDeMentira.alarmas
+    @State private var creandoAlarma = false
+    @State private var alarmaEnEdicion: Alarm?
 
-    public init() {}
+    /// Que hacer cuando se toca la tira de racha. Lo pone la navegacion, que es
+    /// la unica que sabe cambiar de seccion; suelta, la pantalla no navega y su
+    /// `#Preview` sigue funcionando.
+    private let alIrARacha: (() -> Void)?
+
+    public init(alIrARacha: (() -> Void)? = nil) {
+        self.alIrARacha = alIrARacha
+    }
 
     private var proxima: Alarm? { alarmas.first(where: \.isEnabled) }
 
@@ -18,8 +27,9 @@ public struct PantallaListaDeAlarmas: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
                 Cabecera("Alarmas", subtitulo: subtituloDeCabecera) {
-                    Button { } label: { Image(systemName: "plus") }
+                    Button { creandoAlarma = true } label: { Image(systemName: "plus") }
                         .buttonStyle(.redondo)
+                        .accessibilityLabel(Text("Nueva alarma"))
                 }
 
                 if let proxima {
@@ -39,9 +49,13 @@ public struct PantallaListaDeAlarmas: View {
                     .padding(.top, Espacio.corto)
                 }
 
-                TiraDeRacha(racha: DatosDeMentira.rachaActual,
-                            vidas: DatosDeMentira.vidasRestantes)
-                    .padding(.horizontal, Espacio.margen)
+                Button { alIrARacha?() } label: {
+                    TiraDeRacha(racha: DatosDeMentira.rachaActual,
+                                vidas: DatosDeMentira.vidasRestantes)
+                }
+                .buttonStyle(.plain)
+                .disabled(alIrARacha == nil)
+                .padding(.horizontal, Espacio.margen)
 
                 VStack(alignment: .leading, spacing: Espacio.medio) {
                     Text("Todas").estiloRotulo()
@@ -49,7 +63,9 @@ public struct PantallaListaDeAlarmas: View {
 
                     VStack(spacing: Espacio.medio) {
                         ForEach($alarmas) { $alarma in
-                            FilaDeAlarma(alarma: $alarma)
+                            FilaDeAlarma(alarma: $alarma) {
+                                alarmaEnEdicion = alarma
+                            }
                         }
                     }
                     .padding(.horizontal, Espacio.margen)
@@ -63,6 +79,12 @@ public struct PantallaListaDeAlarmas: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
+        .sheet(isPresented: $creandoAlarma) {
+            PantallaEditarAlarma(esNueva: true)
+        }
+        .sheet(item: $alarmaEnEdicion) { alarma in
+            PantallaEditarAlarma(alarma: alarma)
+        }
     }
 
     private var subtituloDeCabecera: String {
@@ -75,9 +97,14 @@ public struct PantallaListaDeAlarmas: View {
 /// interruptor a la derecha.
 private struct FilaDeAlarma: View {
     @Binding var alarma: Alarm
+    let alEditar: () -> Void
 
     var body: some View {
         HStack(spacing: Espacio.normal) {
+            // Solo esta mitad abre la edicion. El interruptor es de la fila
+            // pero no de este gesto: apagar una alarma sin entrar en ella es
+            // lo que mas se hace, y no puede costar dos pasos.
+            editable {
             TextoDeMatriz(
                 String(format: "%02d:%02d", alarma.hour, alarma.minute),
                 altura: 22,
@@ -99,6 +126,7 @@ private struct FilaDeAlarma: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
+            }
 
             Spacer(minLength: Espacio.corto)
 
@@ -107,6 +135,14 @@ private struct FilaDeAlarma: View {
         .padding(.horizontal, Espacio.normal)
         .padding(.vertical, Espacio.normal)
         .relieve(.bajo, radio: Radio.medio)
+    }
+
+    /// Junta lo que abre la edicion en un solo objetivo tocable.
+    @ViewBuilder
+    private func editable<Contenido: View>(@ViewBuilder _ contenido: () -> Contenido) -> some View {
+        HStack(spacing: Espacio.normal) { contenido() }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: alEditar)
     }
 }
 
@@ -153,10 +189,6 @@ struct TiraDeRacha: View {
     }
 }
 
-#Preview("Lista de alarmas · claro") {
-    PantallaListaDeAlarmas()
-}
-
-#Preview("Lista de alarmas · oscuro") {
+#Preview("Lista de alarmas") {
     PantallaListaDeAlarmas().preferredColorScheme(.dark)
 }

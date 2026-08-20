@@ -1,15 +1,6 @@
 import SwiftUI
 
-#if canImport(UIKit)
-import UIKit
-#elseif canImport(AppKit)
-import AppKit
-#endif
-
 /// Un color fijo, escrito con el mismo hexadecimal que usa el diseno.
-///
-/// No se usa directamente en las vistas: solo sirve para construir los pares
-/// claro/oscuro de `Paleta`.
 public struct Tinte: Sendable, Hashable {
     public let rojo: Double
     public let verde: Double
@@ -28,97 +19,72 @@ public struct Tinte: Sendable, Hashable {
     }
 }
 
-extension Color {
-    /// Color que cambia solo con el modo claro/oscuro del sistema.
-    ///
-    /// Devuelve un `Color` de verdad, no un `ShapeStyle`, para que valga
-    /// tambien donde SwiftUI exige un color concreto: sombras y degradados.
-    public static func dinamico(claro: Tinte, oscuro: Tinte) -> Color {
-        #if canImport(UIKit)
-        return Color(UIColor { rasgos in
-            rasgos.userInterfaceStyle == .dark ? oscuro.uiKit : claro.uiKit
-        })
-        #elseif canImport(AppKit)
-        return Color(nsColor: NSColor(name: nil) { apariencia in
-            apariencia.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? oscuro.appKit : claro.appKit
-        })
-        #else
-        return claro.color
-        #endif
-    }
-}
-
-#if canImport(UIKit)
-extension Tinte {
-    var uiKit: UIColor {
-        UIColor(red: rojo, green: verde, blue: azul, alpha: opacidad)
-    }
-}
-#elseif canImport(AppKit)
-extension Tinte {
-    var appKit: NSColor {
-        NSColor(srgbRed: rojo, green: verde, blue: azul, alpha: opacidad)
-    }
-}
-#endif
-
 /// Los colores de RepRise.
 ///
-/// Base monocroma en gris calido, como el reloj fisico de la referencia, y
-/// **un solo color de acento**: el naranja. Si algo necesita destacar y no es
-/// el acento, se resuelve con peso tipografico o con relieve, nunca con un
-/// segundo color.
+/// Base monocroma en gris calido muy oscuro y **un solo color de acento**: el
+/// azul del sistema. Si algo necesita destacar y no es el acento, se resuelve con peso
+/// tipografico o con relieve, nunca con un segundo color.
+///
+/// **La app es solo oscura.** No hay pareja clara ni color que cambie con el
+/// sistema: cada token es un color y ya esta. Se decidio asi porque el
+/// despertador se mira a las seis de la manana con la habitacion a oscuras, y
+/// un modo claro solo servia para deslumbrar al que acaba de abrir los ojos.
+/// Si algun dia vuelve el claro, esto es lo que hay que volver a partir en dos.
 public enum Paleta {
 
     // MARK: - Superficies
 
     /// El papel sobre el que se apoya todo.
-    public static let fondo = Color.dinamico(claro: Tinte(0xEDEBE7), oscuro: Tinte(0x171614))
+    public static let fondo = Tinte(0x171614).color
     /// Lo que sobresale del fondo: tarjetas, filas, botones.
-    public static let superficie = Color.dinamico(claro: Tinte(0xF3F1ED), oscuro: Tinte(0x201F1C))
+    public static let superficie = Tinte(0x201F1C).color
     /// Lo que sobresale del todo: la esfera del reloj, el mando del dial.
-    public static let superficieAlta = Color.dinamico(claro: Tinte(0xFBFAF7), oscuro: Tinte(0x2A2825))
+    public static let superficieAlta = Tinte(0x2A2825).color
     /// Lo que se hunde: campos, pozos, canales.
-    public static let hueco = Color.dinamico(claro: Tinte(0xE4E1DB), oscuro: Tinte(0x121110))
+    public static let hueco = Tinte(0x121110).color
 
     // MARK: - Luz y sombra del neumorfismo
 
-    /// La sombra proyectada. En claro es calida, no negra: un gris neutro
-    /// sobre un fondo calido lo ensucia.
-    public static let sombra = Color.dinamico(claro: Tinte(0xB4AC9F, 0.72), oscuro: Tinte(0x000000, 0.78))
+    /// La sombra proyectada.
+    public static let sombra = Tinte(0x000000, 0.78).color
     /// El brillo del lado contrario, que es lo que hace que parezca volumen.
-    public static let luz = Color.dinamico(claro: Tinte(0xFFFFFF, 0.95), oscuro: Tinte(0xFFFFFF, 0.055))
+    /// En oscuro es un blanco casi invisible: subirlo convierte el plastico en
+    /// plastico barato con purpurina.
+    public static let luz = Tinte(0xFFFFFF, 0.055).color
     /// Filo de un pixel en el borde superior de las piezas en relieve.
-    public static let filo = Color.dinamico(claro: Tinte(0xFFFFFF, 0.75), oscuro: Tinte(0xFFFFFF, 0.09))
+    public static let filo = Tinte(0xFFFFFF, 0.09).color
 
     // MARK: - Tinta
 
-    public static let texto = Color.dinamico(claro: Tinte(0x191817), oscuro: Tinte(0xF6F4EF))
+    public static let texto = Tinte(0xF6F4EF).color
     /// Segundas lineas de titular, valores secundarios, unidades.
-    public static let textoSuave = Color.dinamico(claro: Tinte(0x7C776E), oscuro: Tinte(0x9A948A))
+    public static let textoSuave = Tinte(0x9A948A).color
     /// Lo que esta apagado, bloqueado o todavia no ha pasado.
-    public static let textoTenue = Color.dinamico(claro: Tinte(0xADA79C), oscuro: Tinte(0x6A655D))
+    public static let textoTenue = Tinte(0x6A655D).color
 
     // MARK: - Acento
 
     /// El unico color de la app. Se usa con cuentagotas: lo que esta activo,
     /// lo que progresa y poco mas.
-    public static let acento = Color.dinamico(claro: Tinte(0xE2611B), oscuro: Tinte(0xFF7A2F))
+    ///
+    /// Es el azul de sistema de Apple en su version oscura (`systemBlue` en
+    /// modo oscuro), no el claro: el claro esta calibrado para ir sobre blanco
+    /// y aqui se apaga.
+    public static let acento = Tinte(0x0A84FF).color
     /// Fondo de las pastillas de acento. Nunca lleva texto de acento encima.
-    public static let acentoTenue = Color.dinamico(claro: Tinte(0xF6DCCB), oscuro: Tinte(0x3B2314))
+    public static let acentoTenue = Tinte(0x12283F).color
 
     // MARK: - Pantalla del reto
 
-    // El reto se mira a las seis de la manana, a oscuras y con los ojos a medio
-    // abrir. Ahi el neumorfismo estorba: hace falta contraste bruto. Estos
-    // colores son los unicos de la app que no son sutiles a proposito.
+    // El reto se mira a las seis de la manana y con los ojos a medio abrir. Ahi
+    // el neumorfismo estorba: hace falta contraste bruto. Estos colores son los
+    // unicos de la app que no son sutiles a proposito.
 
-    /// Fondo del reto: blanco puro de dia, casi negro de noche. De noche NO se
-    /// enciende una pantalla blanca en la cara de alguien que acaba de abrir
-    /// los ojos.
-    public static let retoFondo = Color.dinamico(claro: Tinte(0xFFFFFF), oscuro: Tinte(0x0A0A09))
+    /// Fondo del reto: casi negro. NO se enciende una pantalla blanca en la
+    /// cara de alguien que acaba de abrir los ojos.
+    public static let retoFondo = Tinte(0x0A0A09).color
     /// Maximo contraste contra `retoFondo`. Sin grises sobre grises.
-    public static let retoTinta = Color.dinamico(claro: Tinte(0x000000), oscuro: Tinte(0xFFFFFF))
+    public static let retoTinta = Tinte(0xFFFFFF).color
     /// Lo que falta por hacer: puntos apagados y pista del anillo.
-    public static let retoApagado = Color.dinamico(claro: Tinte(0xD5D1C9), oscuro: Tinte(0x302E2A))
+    public static let retoApagado = Tinte(0x302E2A).color
 }

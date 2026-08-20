@@ -9,6 +9,7 @@ public struct PantallaRacha: View {
     private let racha: Int
     private let mejor: Int
     private let vidas: Int
+    @State private var mostrarAjustes = false
 
     public init(
         racha: Int = DatosDeMentira.rachaActual,
@@ -20,14 +21,15 @@ public struct PantallaRacha: View {
         self.vidas = vidas
     }
 
-    private var nivel: FichaDeNivel { DatosDeMentira.nivel(paraRacha: racha) }
+    private var nivel: Nivel { Niveles.nivel(racha: racha) }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
                 Cabecera("Racha", subtitulo: nivel.nombre.lowercased()) {
-                    Button { } label: { Image(systemName: "gearshape") }
+                    Button { mostrarAjustes = true } label: { Image(systemName: "gearshape") }
                         .buttonStyle(.redondo)
+                        .accessibilityLabel(Text("Ajustes"))
                 }
 
                 numeroGrande
@@ -40,6 +42,7 @@ public struct PantallaRacha: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
+        .sheet(isPresented: $mostrarAjustes) { PantallaAjustes() }
     }
 
     // MARK: - Piezas
@@ -74,8 +77,8 @@ public struct PantallaRacha: View {
                 Spacer()
             }
             BarraDeProgreso(progreso: nivel.progreso(conRacha: racha))
-            if let hasta = nivel.hasta {
-                Text("Faltan \(hasta - racha) días para el nivel \(nivel.numero + 1).")
+            if nivel.hasta != nil {
+                Text("Faltan \(nivel.diasQueFaltan(conRacha: racha)) días para el nivel \(nivel.numero + 1).")
                     .font(Tipografia.pie)
                     .foregroundStyle(Paleta.textoSuave)
             } else {
@@ -135,9 +138,12 @@ public struct PantallaRacha: View {
                 .padding(.horizontal, Espacio.margen + Espacio.mini)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: Espacio.normal) {
-                    ForEach(DatosDeMentira.insignias) { ficha in
-                        SelloDeInsignia(simbolo: ficha.simbolo, nombre: ficha.nombre,
-                                 conseguida: ficha.conseguida)
+                    ForEach(Insignia.allCases) { insignia in
+                        SelloDeInsignia(
+                            simbolo: insignia.simbolo,
+                            nombre: insignia.nombre,
+                            conseguida: insignia.concedida(DatosDeMentira.estadoDeRacha)
+                        )
                     }
                 }
                 .padding(.horizontal, Espacio.margen)
@@ -273,10 +279,6 @@ private struct CeldaDeDia: View {
     }
 }
 
-#Preview("Racha · claro") {
-    PantallaRacha()
-}
-
-#Preview("Racha · oscuro") {
+#Preview("Racha") {
     PantallaRacha().preferredColorScheme(.dark)
 }

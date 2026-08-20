@@ -8,6 +8,7 @@ import SwiftUI
 /// argumento no se ve, no existe.
 public struct PantallaMuroDePago: View {
     @State private var plan: Plan = .anual
+    @Environment(\.dismiss) private var cerrar
 
     public init() {}
 
@@ -19,8 +20,9 @@ public struct PantallaMuroDePago: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
                 Cabecera("RepRise Pro", subtitulo: "sin tocar la racha") {
-                    Button { } label: { Image(systemName: "xmark") }
+                    Button { cerrar() } label: { Image(systemName: "xmark") }
                         .buttonStyle(.redondo)
+                        .accessibilityLabel(Text("Cerrar"))
                 }
 
                 VStack(alignment: .leading, spacing: Espacio.normal) {
@@ -143,10 +145,6 @@ private struct TarjetaDePlan: View {
     }
 }
 
-#Preview("Muro de pago · claro") {
-    PantallaMuroDePago()
-}
-
-#Preview("Muro de pago · oscuro") {
+#Preview("Muro de pago") {
     PantallaMuroDePago().preferredColorScheme(.dark)
 }

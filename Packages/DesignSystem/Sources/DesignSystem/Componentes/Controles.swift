@@ -225,11 +225,7 @@ public struct Raya: View {
     }
 }
 
-#Preview("Controles · claro") {
-    MuestraDeControles()
-}
-
-#Preview("Controles · oscuro") {
+#Preview("Controles") {
     MuestraDeControles().preferredColorScheme(.dark)
 }
 

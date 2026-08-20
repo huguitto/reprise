@@ -8,32 +8,19 @@ import SwiftUI
 ///
 /// Todo lo que hay debajo es estatico y con datos inventados.
 public struct GaleriaDeDiseno: View {
-    @State private var tema: Tema = .sistema
+    @Environment(\.dismiss) private var cerrar
 
     public init() {}
-
-    enum Tema: String, CaseIterable {
-        case sistema = "Sistema"
-        case claro = "Claro"
-        case oscuro = "Oscuro"
-
-        var esquema: ColorScheme? {
-            switch self {
-            case .sistema: nil
-            case .claro: .light
-            case .oscuro: .dark
-            }
-        }
-    }
 
     public var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Espacio.amplio) {
-                    Cabecera("RepRise", subtitulo: "sistema de diseño")
-
-                    SelectorSegmentado(opciones: Tema.allCases, seleccion: $tema) { $0.rawValue }
-                        .padding(.horizontal, Espacio.margen)
+                    Cabecera("RepRise", subtitulo: "sistema de diseño") {
+                        Button { cerrar() } label: { Image(systemName: "xmark") }
+                            .buttonStyle(.redondo)
+                            .accessibilityLabel(Text("Cerrar"))
+                    }
 
                     grupo("Pantallas") {
                         enlace("Lista de alarmas", "alarm") { PantallaListaDeAlarmas() }
@@ -84,7 +71,6 @@ public struct GaleriaDeDiseno: View {
             .fondoDePantalla()
         }
         .tint(Paleta.acento)
-        .preferredColorScheme(tema.esquema)
     }
 
     private func grupo<Contenido: View>(
@@ -105,10 +91,7 @@ public struct GaleriaDeDiseno: View {
         @ViewBuilder destino: @escaping () -> Destino
     ) -> some View {
         NavigationLink {
-            destino()
-                #if os(iOS)
-                .toolbar(.hidden, for: .navigationBar)
-                #endif
+            Empujada { destino() }
         } label: {
             FilaDeAjuste(icono: icono, titulo: titulo) {
                 Image(systemName: "chevron.right")
@@ -120,10 +103,31 @@ public struct GaleriaDeDiseno: View {
     }
 }
 
-#Preview("Galeria · claro") {
-    GaleriaDeDiseno()
+/// Lo que la galeria empuja encima de si misma.
+///
+/// Las pantallas traen su propia cabecera, asi que la barra de navegacion del
+/// sistema se esconde: dos titulos uno sobre otro quedan fatal. El precio es
+/// que se va con ella el boton de volver, y sin el te quedas encerrado con el
+/// gesto de deslizar como unica salida, que nadie adivina. Asi que la galeria
+/// pone el suyo, flotando abajo a la izquierda para no chocar con el titular.
+private struct Empujada<Contenido: View>: View {
+    @Environment(\.dismiss) private var volver
+    @ViewBuilder let contenido: Contenido
+
+    var body: some View {
+        contenido
+            #if os(iOS)
+            .toolbar(.hidden, for: .navigationBar)
+            #endif
+            .overlay(alignment: .bottomLeading) {
+                Button { volver() } label: { Image(systemName: "chevron.left") }
+                    .buttonStyle(.redondo)
+                    .padding(Espacio.margen)
+                    .accessibilityLabel(Text("Volver al muestrario"))
+            }
+    }
 }
 
-#Preview("Galeria · oscuro") {
+#Preview("Galeria") {
     GaleriaDeDiseno().preferredColorScheme(.dark)
 }

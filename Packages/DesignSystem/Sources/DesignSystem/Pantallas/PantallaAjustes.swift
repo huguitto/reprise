@@ -4,31 +4,29 @@ import AlarmCore
 /// Ajustes. Corto a proposito: cada opcion que se anade es una decision que el
 /// usuario tiene que tomar a cambio de nada.
 public struct PantallaAjustes: View {
-    @State private var tema: Tema = .sistema
     @State private var retoPorDefecto: ChallengeType = .pasos
     @State private var vibrar = true
+    @State private var mostrarPro = false
+    @State private var mostrarGaleria = false
+    @Environment(\.dismiss) private var cerrar
     private let esPro: Bool
 
     public init(esPro: Bool = false) {
         self.esPro = esPro
     }
 
-    enum Tema: String, CaseIterable {
-        case sistema = "Sistema"
-        case claro = "Claro"
-        case oscuro = "Oscuro"
-    }
-
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
                 Cabecera("Ajustes") {
-                    Button { } label: { Image(systemName: "xmark") }
+                    Button { cerrar() } label: { Image(systemName: "xmark") }
                         .buttonStyle(.redondo)
+                        .accessibilityLabel(Text("Cerrar"))
                 }
 
                 if !esPro {
-                    tarjetaDePro
+                    Button { mostrarPro = true } label: { tarjetaDePro }
+                        .buttonStyle(.plain)
                 }
 
                 seccion("Cuenta") {
@@ -65,14 +63,6 @@ public struct PantallaAjustes: View {
                     }
                 }
 
-                seccion("Apariencia") {
-                    Bloque {
-                        FilaApilada(icono: "circle.lefthalf.filled", titulo: "Tema") {
-                            SelectorSegmentado(opciones: Tema.allCases, seleccion: $tema) { $0.rawValue }
-                        }
-                    }
-                }
-
                 seccion("La app") {
                     Bloque {
                         FilaDeAjuste(icono: "questionmark.circle", titulo: "Cómo funciona la racha") { chevron }
@@ -84,10 +74,25 @@ public struct PantallaAjustes: View {
                         FilaDeAjuste(icono: "info.circle", titulo: "Versión", detalle: "1.0 (1)")
                     }
                 }
+
+                // Puerta de servicio: el muestrario del sistema de diseno, para
+                // poder mirar las piezas en el movil de verdad. Se ira cuando
+                // la app este montada del todo.
+                seccion("Para el equipo") {
+                    Bloque {
+                        Button { mostrarGaleria = true } label: {
+                            FilaDeAjuste(icono: "swatchpalette", titulo: "Sistema de diseño",
+                                         detalle: "Pantallas y piezas") { chevron }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
+        .sheet(isPresented: $mostrarPro) { PantallaMuroDePago() }
+        .sheet(isPresented: $mostrarGaleria) { GaleriaDeDiseno() }
     }
 
     private var chevron: some View {
@@ -132,10 +137,6 @@ public struct PantallaAjustes: View {
     }
 }
 
-#Preview("Ajustes · claro") {
-    PantallaAjustes()
-}
-
-#Preview("Ajustes · oscuro") {
+#Preview("Ajustes") {
     PantallaAjustes().preferredColorScheme(.dark)
 }

@@ -119,11 +119,7 @@ extension ButtonStyle where Self == BotonRedondo {
     public static var redondo: BotonRedondo { BotonRedondo() }
 }
 
-#Preview("Botones · claro") {
-    MuestraDeBotones()
-}
-
-#Preview("Botones · oscuro") {
+#Preview("Botones") {
     MuestraDeBotones().preferredColorScheme(.dark)
 }
 

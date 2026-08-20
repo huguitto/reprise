@@ -33,16 +33,54 @@ public struct EsferaDeReloj: View {
                 color: activa ? Paleta.texto : Paleta.textoTenue
             )
 
-            // El testigo de la referencia, arriba a la izquierda. Es lo unico
-            // que dice si la alarma esta puesta, y por eso lleva el acento.
-            Circle()
-                .fill(activa ? Paleta.acento : Paleta.textoTenue)
-                .frame(width: diametro * 0.035, height: diametro * 0.035)
-                .offset(x: -diametro * 0.29, y: -diametro * 0.26)
+            // Las dos marcas de la hora que muestra la esfera.
+            //
+            // Antes habia una sola bolita, clavada arriba a la izquierda, que
+            // venia de la referencia y no significaba nada. Enganaba: en una
+            // esfera con canto moleteado, un punto sobre el circulo se lee como
+            // una aguja, y estaba siempre en el mismo sitio dijera la hora lo
+            // que dijera.
+            //
+            // Ahora son dos y apuntan de verdad. Se reparten como las agujas de
+            // un reloj, que es lo que todo el mundo sabe leer sin pensar: la de
+            // la hora corta y por dentro, la de los minutos larga y por fuera.
+            // Con radios distintos ademas no se pisan cuando coinciden, que
+            // pasa a cada hora en punto y a y media.
+            marca(angulo: anguloDeLaHora, radio: diametro * 0.315, tamano: diametro * 0.042)
+            marca(angulo: anguloDelMinuto, radio: diametro * 0.415, tamano: diametro * 0.030)
         }
         .frame(width: diametro, height: diametro)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(activa ? "Alarma puesta" : "Alarma apagada"))
+        .accessibilityLabel(Text(
+            String(format: activa ? "Alarma puesta a las %d:%02d" : "Alarma apagada, %d:%02d",
+                   hora, minuto)
+        ))
+    }
+
+    // MARK: - Las marcas
+
+    /// Angulo de la marca de la hora, en radianes desde las doce.
+    ///
+    /// Salta de hora en hora y **no** avanza con los minutos. A las 7:05 sigue
+    /// clavada en el 7: aqui la esfera se lee de un vistazo desde la cama, y
+    /// una marca a medio camino entre dos numeros es justo lo que obliga a
+    /// mirar dos veces.
+    private var anguloDeLaHora: Double {
+        Double(hora % 12) / 12 * 2 * .pi
+    }
+
+    /// Angulo de la marca de los minutos, en radianes desde las doce.
+    private var anguloDelMinuto: Double {
+        Double(minuto % 60) / 60 * 2 * .pi
+    }
+
+    /// Una marca sobre la esfera. El angulo se mide desde las doce y en el
+    /// sentido de las agujas, no desde el eje X: es como se piensa una hora.
+    private func marca(angulo: Double, radio: CGFloat, tamano: CGFloat) -> some View {
+        Circle()
+            .fill(activa ? Paleta.acento : Paleta.textoTenue)
+            .frame(width: tamano, height: tamano)
+            .offset(x: radio * sin(angulo), y: -radio * cos(angulo))
     }
 }
 
@@ -73,22 +111,29 @@ private struct CantoMoleteado: View {
     }
 }
 
-#Preview("Esfera · claro") {
-    MuestraDeEsfera()
-}
-
-#Preview("Esfera · oscuro") {
+#Preview("Esfera") {
     MuestraDeEsfera().preferredColorScheme(.dark)
 }
 
 struct MuestraDeEsfera: View {
+    // Las horas elegidas son las que hacen dano: 12:00 pone las dos marcas en
+    // el mismo angulo, 6:30 tambien, y 7:05 es la que pidio el usuario.
+    private let horas = [(6, 30), (7, 5), (12, 0), (9, 45)]
+
     var body: some View {
-        VStack(spacing: Espacio.ancho) {
-            EsferaDeReloj(hora: 6, minuto: 30, activa: true)
-            EsferaDeReloj(hora: 8, minuto: 0, activa: false, diametro: 140)
+        ScrollView {
+            VStack(spacing: Espacio.ancho) {
+                EsferaDeReloj(hora: 7, minuto: 0, activa: true)
+                HStack(spacing: Espacio.normal) {
+                    ForEach(horas, id: \.0) { hora, minuto in
+                        EsferaDeReloj(hora: hora, minuto: minuto, diametro: 82)
+                    }
+                }
+                EsferaDeReloj(hora: 8, minuto: 20, activa: false, diametro: 140)
+            }
+            .padding(Espacio.ancho)
+            .frame(maxWidth: .infinity)
         }
-        .padding(Espacio.ancho)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .fondoDePantalla()
     }
 }

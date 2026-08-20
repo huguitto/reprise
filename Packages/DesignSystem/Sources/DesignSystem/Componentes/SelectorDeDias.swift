@@ -92,11 +92,7 @@ public struct SelectorDeDias: View {
     }
 }
 
-#Preview("Días · claro") {
-    MuestraDeDias()
-}
-
-#Preview("Días · oscuro") {
+#Preview("Días") {
     MuestraDeDias().preferredColorScheme(.dark)
 }
 

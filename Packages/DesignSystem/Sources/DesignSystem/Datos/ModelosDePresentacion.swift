@@ -1,55 +1,16 @@
 import Foundation
 import AlarmCore
 
-// Modelos que existen SOLO para pintar.
+// Modelos que existen SOLO para pintar, y como se lee lo de AlarmCore.
 //
-// El motor de rachas, los niveles de verdad y el ranking de verdad son de
-// otros paquetes. Cuando existan, estas estructuras se caen y las pantallas
-// pasan a leer las suyas. Estan aqui para que el diseno no tenga que esperar
-// a nadie, no para fijar un contrato.
+// Aqui ya no hay niveles ni insignias propios: los trae AlarmCore y las
+// pantallas leen los suyos. Lo que queda son dos cosas distintas:
 //
-// Por eso ninguna se llama como el tipo de dominio al que suplanta: la app
-// importa este modulo y AlarmCore a la vez, asi que dos `Nivel` publicos
-// obligan a cualificar cada uso. El nombre bueno es del dueno del dominio.
-
-/// Nivel que se ensena junto a la racha. Provisional: se borra en cuanto
-/// `AlarmCore.Niveles` este en `main`, que ya trae esta misma escalera.
-public struct FichaDeNivel: Hashable, Sendable {
-    public let numero: Int
-    public let nombre: String
-    /// Racha con la que empieza este nivel.
-    public let desde: Int
-    /// Racha con la que empieza el siguiente. `nil` en el ultimo.
-    public let hasta: Int?
-
-    public init(numero: Int, nombre: String, desde: Int, hasta: Int?) {
-        self.numero = numero
-        self.nombre = nombre
-        self.desde = desde
-        self.hasta = hasta
-    }
-
-    /// Cuanto falta para el siguiente nivel, de 0 a 1.
-    public func progreso(conRacha racha: Int) -> Double {
-        guard let hasta, hasta > desde else { return 1 }
-        return min(max(Double(racha - desde) / Double(hasta - desde), 0), 1)
-    }
-}
-
-/// Una insignia tal y como se ve en la pantalla de racha.
-public struct FichaDeInsignia: Identifiable, Hashable, Sendable {
-    public let id: String
-    public let simbolo: String
-    public let nombre: String
-    public let conseguida: Bool
-
-    public init(id: String, simbolo: String, nombre: String, conseguida: Bool) {
-        self.id = id
-        self.simbolo = simbolo
-        self.nombre = nombre
-        self.conseguida = conseguida
-    }
-}
+//   - `PuestoDeRanking`, que sigue siendo de mentira porque el ranking es de
+//     red y todavia no existe. Se cae igual cuando exista.
+//   - Las extensiones de abajo, que NO se caen: son la capa de presentacion
+//     de tipos de dominio. Como se pinta una insignia o como se lee un
+//     desenlace es cosa del diseno, no del motor, y por eso vive de este lado.
 
 /// Una linea del ranking.
 public struct PuestoDeRanking: Identifiable, Hashable, Sendable {
@@ -70,6 +31,23 @@ public struct PuestoDeRanking: Identifiable, Hashable, Sendable {
         self.bandera = bandera
         self.racha = racha
         self.eresTu = eresTu
+    }
+}
+
+extension Insignia {
+    /// Simbolo del sistema con el que se pinta cada insignia.
+    ///
+    /// Vive aqui y no en AlarmCore a proposito: el motor decide que se
+    /// concede y como se llama, el diseno decide con que se dibuja.
+    public var simbolo: String {
+        switch self {
+        case .primerDia: "sunrise.fill"
+        case .semanaEnPie: "flame.fill"
+        case .mesEnPie: "crown.fill"
+        case .cienSeguidos: "trophy.fill"
+        case .anoEnPie: "rosette"
+        case .veterano: "checkmark.seal.fill"
+        }
     }
 }
 
