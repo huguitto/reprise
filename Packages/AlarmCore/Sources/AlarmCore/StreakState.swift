@@ -8,12 +8,13 @@ public struct StreakState: Hashable, Codable, Sendable {
     public var current: Int
     public var best: Int
     /// Dias completados en toda la vida del usuario. No baja nunca, ni siquiera
-    /// al romperse la racha: es el eje sobre el que suben los niveles.
+    /// al romperse la racha.
     ///
-    /// Va aparte de `best` a proposito. `best` mide la mejor racha seguida y es
-    /// lo que premian las insignias; esto mide constancia acumulada. Colgar los
-    /// niveles de la racha actual castigaria dos veces el mismo fallo: pierdes
-    /// la racha y ademas bajas de nivel.
+    /// Los niveles NO cuelgan de aqui: van con la racha actual, y bajan con
+    /// ella. Esto sostiene la insignia de veterano y las estadisticas de Pro.
+    ///
+    /// Se guarda en vez de contarse desde el historial porque el historial se
+    /// puede podar y esto no se puede reconstruir despues.
     public var diasCompletadosTotales: Int
     public var livesRemaining: Int
     /// Mes en el que se repusieron las vidas por ultima vez, para no reponerlas
