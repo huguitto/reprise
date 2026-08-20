@@ -81,13 +81,17 @@ private struct FilaDeAlarma: View {
             TextoDeMatriz(
                 String(format: "%02d:%02d", alarma.hour, alarma.minute),
                 altura: 22,
-                color: alarma.isEnabled ? Paleta.texto : Paleta.textoTenue
+                // Apagada va en gris medio, no en el gris de "esto ni se lee":
+                // la hora es justo el dato que hace falta para decidir si se
+                // vuelve a encender. Quien dice que esta apagada es el
+                // interruptor, que no deja lugar a dudas.
+                color: alarma.isEnabled ? Paleta.texto : Paleta.textoSuave
             )
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(alarma.label.isEmpty ? alarma.challenge.nombre : alarma.label)
                     .font(Tipografia.pieFuerte)
-                    .foregroundStyle(alarma.isEnabled ? Paleta.texto : Paleta.textoTenue)
+                    .foregroundStyle(alarma.isEnabled ? Paleta.texto : Paleta.textoSuave)
                     .lineLimit(1)
                 Text(alarma.weekdays.resumen)
                     .font(Tipografia.pie)
@@ -103,7 +107,6 @@ private struct FilaDeAlarma: View {
         .padding(.horizontal, Espacio.normal)
         .padding(.vertical, Espacio.normal)
         .relieve(.bajo, radio: Radio.medio)
-        .opacity(alarma.isEnabled ? 1 : 0.7)
     }
 }
 
