@@ -21,12 +21,12 @@ Cada worktree necesita su propio `tuist generate` la primera vez.
 Cada agente tiene un briefing propio con su alcance, su definicion de terminado y
 las trampas que ya conocemos. La tabla es solo el indice.
 
-| Agente | Paquetes | Encargo | Briefing |
+| Agente | Paquetes | Encargo | Plan |
 |---|---|---|---|
-| A — Rachas | `AlarmCore`, `Persistence` | Motor de rachas y vidas, con tests. Persistencia y el rastro de reto empezado. | [agente-a-rachas.md](agentes/agente-a-rachas.md) |
-| B — Alarma | `AlarmScheduler` | AlarmKit tras el protocolo, repeticion, tonos, sostener el sonido durante el reto. | [agente-b-alarma.md](agentes/agente-b-alarma.md) |
-| C — Sensores | `ChallengeKit` | Pasos y sentadillas. **Primero la herramienta de calibracion.** | [agente-c-sensores.md](agentes/agente-c-sensores.md) |
-| D — Diseno | `DesignSystem` | Sistema de diseno completo y pantallas estaticas. | [agente-d-diseno.md](agentes/agente-d-diseno.md) |
+| A — Rachas | `AlarmCore`, `Persistence` | Motor de rachas y vidas, con tests. Persistencia y el rastro de reto empezado. | [plan-a.md](../plan-a.md) |
+| B — Alarma | `AlarmScheduler` | AlarmKit tras el protocolo, repeticion, tonos, sostener el sonido durante el reto. | [plan-b.md](../plan-b.md) |
+| C — Sensores | `ChallengeKit` | Pasos y sentadillas. **Primero la herramienta de calibracion.** | [plan-c.md](../plan-c.md) |
+| D — Diseno | `DesignSystem` | Sistema de diseno completo y pantallas estaticas. | [plan-d.md](../plan-d.md) |
 
 ## Los cuellos de botella, dichos por adelantado
 

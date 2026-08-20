@@ -1,9 +1,9 @@
-# Agente B — Alarma
+# Plan B — Alarma
 
 **Worktree**: `../wt-alarma` · **Rama**: `feat/alarmkit`
 **Paquete tuyo**: `AlarmScheduler`
 
-Lee antes: [decisiones-producto.md](../decisiones-producto.md), sobre todo la
+Lee antes: [decisiones-producto.md](docs/decisiones-producto.md), sobre todo la
 seccion "El flujo real, con la limitacion de iOS".
 
 ## Tu situacion de partida es incomoda: asumela

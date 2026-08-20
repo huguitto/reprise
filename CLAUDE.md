@@ -9,12 +9,12 @@ Todo el codigo, los comentarios y los textos de la app van **en espanol**.
 
 Cada agente tiene su briefing. Leelo entero antes de escribir nada:
 
-| Agente | Paquetes | Briefing |
+| Agente | Paquetes | Tu plan |
 |---|---|---|
-| A — Rachas | `AlarmCore`, `Persistence` | [docs/agentes/agente-a-rachas.md](docs/agentes/agente-a-rachas.md) |
-| B — Alarma | `AlarmScheduler` | [docs/agentes/agente-b-alarma.md](docs/agentes/agente-b-alarma.md) |
-| C — Sensores | `ChallengeKit` | [docs/agentes/agente-c-sensores.md](docs/agentes/agente-c-sensores.md) |
-| D — Diseno | `DesignSystem` | [docs/agentes/agente-d-diseno.md](docs/agentes/agente-d-diseno.md) |
+| A — Rachas | `AlarmCore`, `Persistence` | **[plan-a.md](plan-a.md)** |
+| B — Alarma | `AlarmScheduler` | **[plan-b.md](plan-b.md)** |
+| C — Sensores | `ChallengeKit` | **[plan-c.md](plan-c.md)** |
+| D — Diseno | `DesignSystem` | **[plan-d.md](plan-d.md)** |
 
 ## Reglas de trabajo (obligatorias para agentes)
 

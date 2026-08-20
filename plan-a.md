@@ -1,10 +1,10 @@
-# Agente A — Rachas y persistencia
+# Plan A — Rachas y persistencia
 
 **Worktree**: `../wt-rachas` · **Rama**: `feat/motor-rachas`
 **Paquetes tuyos**: `AlarmCore`, `Persistence`
 
-Lee antes: [decisiones-producto.md](../decisiones-producto.md) y
-[arquitectura.md](../arquitectura.md).
+Lee antes: [decisiones-producto.md](docs/decisiones-producto.md) y
+[arquitectura.md](docs/arquitectura.md).
 
 ## Lo que ya existe
 

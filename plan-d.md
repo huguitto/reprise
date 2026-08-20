@@ -1,4 +1,4 @@
-# Agente D — Sistema de diseno
+# Plan D — Sistema de diseno
 
 **Worktree**: `../wt-diseno` · **Rama**: `feat/sistema-diseno`
 **Paquete tuyo**: `DesignSystem`, mas las pantallas estaticas

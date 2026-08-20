@@ -1,4 +1,4 @@
-# Agente C — Deteccion de los retos
+# Plan C — Deteccion de los retos
 
 **Worktree**: `../wt-sensores` · **Rama**: `feat/deteccion-retos`
 **Paquete tuyo**: `ChallengeKit`
