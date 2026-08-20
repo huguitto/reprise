@@ -8,8 +8,9 @@ import Foundation
 //   - Las INSIGNIAS premian `best` y el acumulado de por vida. Esas no se
 //     quitan nunca: son hazanas, y una hazana pasada no deja de haber ocurrido.
 //
-// Ninguna de las dos se puede comprar: por decision de producto se vende lo que
-// rodea a la racha, nunca la racha misma.
+// Ninguna de las dos se puede comprar. Las vidas si son de Pro desde el
+// 21/08/2026, pero niveles e insignias no: se ganan levantandose y no hay boton
+// que los suba. Pagar tampoco reconstruye una racha ya rota.
 
 // MARK: - Niveles
 

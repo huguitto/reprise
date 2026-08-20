@@ -1,8 +1,14 @@
 import Foundation
 
 public struct StreakState: Hashable, Codable, Sendable {
-    /// Vidas que se conceden al empezar cada mes. No se acumulan: lo que no
-    /// gastas en agosto no lo tienes en septiembre.
+    /// Vidas que se conceden al empezar cada mes **con Pro**. No se acumulan:
+    /// lo que no gastas en agosto no lo tienes en septiembre.
+    ///
+    /// El plan gratis no tiene vidas: se rompe la racha al primer fallo. Quien
+    /// manda es `PlanDeSuscripcion.limites.vidasAlMes`, y esta constante es
+    /// solo el tope de Pro. En pantalla sirve para dibujar los huecos: un
+    /// usuario gratis ve las dos casillas vacias, que es exactamente lo que le
+    /// falta.
     public static let livesPerMonth = 2
 
     public var current: Int
