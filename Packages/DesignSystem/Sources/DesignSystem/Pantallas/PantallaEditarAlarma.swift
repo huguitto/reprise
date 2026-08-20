@@ -9,6 +9,7 @@ import AlarmCore
 public struct PantallaEditarAlarma: View {
     @State private var alarma: Alarm
     @State private var moviendo: Movimiento = .hora
+    @Environment(\.dismiss) private var cerrar
     private let esNueva: Bool
 
     public init(alarma: Alarm? = nil, esNueva: Bool = false) {
@@ -30,8 +31,9 @@ public struct PantallaEditarAlarma: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
                 Cabecera(esNueva ? "Nueva" : "Editar", subtitulo: "alarma") {
-                    Button { } label: { Image(systemName: "xmark") }
+                    Button { cerrar() } label: { Image(systemName: "xmark") }
                         .buttonStyle(.redondo)
+                        .accessibilityLabel(Text("Cerrar"))
                 }
 
                 selectorDeHora
@@ -70,9 +72,13 @@ public struct PantallaEditarAlarma: View {
                 }
 
                 VStack(spacing: Espacio.medio) {
-                    Button("Guardar") {}.buttonStyle(.principal)
+                    // Todavia no guardan ni borran nada: la persistencia es de
+                    // otro paquete. Pero cierran, que es lo minimo honesto —
+                    // un boton que no hace absolutamente nada deja al usuario
+                    // dandole sin entender por que no pasa nada.
+                    Button("Guardar") { cerrar() }.buttonStyle(.principal)
                     if !esNueva {
-                        Button("Eliminar la alarma") {}.buttonStyle(.texto)
+                        Button("Eliminar la alarma") { cerrar() }.buttonStyle(.texto)
                     }
                 }
                 .padding(.horizontal, Espacio.margen)
