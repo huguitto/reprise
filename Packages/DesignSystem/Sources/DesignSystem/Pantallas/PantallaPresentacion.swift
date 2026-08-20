@@ -318,10 +318,6 @@ private struct Puntos: View {
     }
 }
 
-#Preview("Presentación · claro") {
-    PantallaPresentacion()
-}
-
-#Preview("Presentación · oscuro") {
+#Preview("Presentación") {
     PantallaPresentacion().preferredColorScheme(.dark)
 }
