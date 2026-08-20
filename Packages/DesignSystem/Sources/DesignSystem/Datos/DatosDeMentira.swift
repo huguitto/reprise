@@ -42,16 +42,16 @@ public enum DatosDeMentira {
     public static let mejorRacha = 28
     public static let vidasRestantes = 2
 
-    public static let niveles: [Nivel] = [
-        Nivel(numero: 1, nombre: "Te suena el despertador", desde: 0, hasta: 3),
-        Nivel(numero: 2, nombre: "Te levantas", desde: 3, hasta: 7),
-        Nivel(numero: 3, nombre: "Ya no cuesta tanto", desde: 7, hasta: 14),
-        Nivel(numero: 4, nombre: "Constante", desde: 14, hasta: 30),
-        Nivel(numero: 5, nombre: "Imparable", desde: 30, hasta: 60),
-        Nivel(numero: 6, nombre: "Leyenda", desde: 60, hasta: nil)
+    public static let niveles: [FichaDeNivel] = [
+        FichaDeNivel(numero: 1, nombre: "Te suena el despertador", desde: 0, hasta: 3),
+        FichaDeNivel(numero: 2, nombre: "Te levantas", desde: 3, hasta: 7),
+        FichaDeNivel(numero: 3, nombre: "Ya no cuesta tanto", desde: 7, hasta: 14),
+        FichaDeNivel(numero: 4, nombre: "Constante", desde: 14, hasta: 30),
+        FichaDeNivel(numero: 5, nombre: "Imparable", desde: 30, hasta: 60),
+        FichaDeNivel(numero: 6, nombre: "Leyenda", desde: 60, hasta: nil)
     ]
 
-    public static func nivel(paraRacha racha: Int) -> Nivel {
+    public static func nivel(paraRacha racha: Int) -> FichaDeNivel {
         niveles.last { racha >= $0.desde } ?? niveles[0]
     }
 

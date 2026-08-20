@@ -7,9 +7,14 @@ import AlarmCore
 // otros paquetes. Cuando existan, estas estructuras se caen y las pantallas
 // pasan a leer las suyas. Estan aqui para que el diseno no tenga que esperar
 // a nadie, no para fijar un contrato.
+//
+// Por eso ninguna se llama como el tipo de dominio al que suplanta: la app
+// importa este modulo y AlarmCore a la vez, asi que dos `Nivel` publicos
+// obligan a cualificar cada uso. El nombre bueno es del dueno del dominio.
 
-/// Nivel que se ensena junto a la racha.
-public struct Nivel: Hashable, Sendable {
+/// Nivel que se ensena junto a la racha. Provisional: se borra en cuanto
+/// `AlarmCore.Niveles` este en `main`, que ya trae esta misma escalera.
+public struct FichaDeNivel: Hashable, Sendable {
     public let numero: Int
     public let nombre: String
     /// Racha con la que empieza este nivel.

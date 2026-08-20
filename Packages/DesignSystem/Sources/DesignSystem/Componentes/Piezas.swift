@@ -94,10 +94,10 @@ public struct CifraConPrefijo: View {
     }
 }
 
-/// Insignia: disco en relieve con un simbolo dentro. Las que no se han ganado
+/// Sello de insignia: disco en relieve con un simbolo dentro. Las que no se han ganado
 /// se quedan hundidas y en gris, sin candado ni cartel: el hueco ya dice que
 /// falta algo.
-public struct Insignia: View {
+public struct SelloDeInsignia: View {
     private let simbolo: String
     private let nombre: String
     private let conseguida: Bool
@@ -228,9 +228,9 @@ struct MuestraDePiezas: View {
                 .padding(.horizontal, Espacio.margen)
 
             HStack(spacing: Espacio.normal) {
-                Insignia(simbolo: "flame.fill", nombre: "7 días", conseguida: true)
-                Insignia(simbolo: "sunrise.fill", nombre: "Madrugador", conseguida: true)
-                Insignia(simbolo: "crown.fill", nombre: "30 días", conseguida: false)
+                SelloDeInsignia(simbolo: "flame.fill", nombre: "7 días", conseguida: true)
+                SelloDeInsignia(simbolo: "sunrise.fill", nombre: "Madrugador", conseguida: true)
+                SelloDeInsignia(simbolo: "crown.fill", nombre: "30 días", conseguida: false)
             }
             .padding(.horizontal, Espacio.margen)
 
