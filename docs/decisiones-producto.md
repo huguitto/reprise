@@ -2,6 +2,9 @@
 
 Cerradas con el usuario el 20/08/2026. Lo que no esta aqui, no se construye.
 
+Revisadas el 21/08/2026: cambia el reparto entre gratis y Pro. Ver
+[Monetizacion](#monetizacion).
+
 ## Qué es
 
 Un despertador que no se puede apagar sin levantarse de la cama.
@@ -10,7 +13,9 @@ Un despertador que no se puede apagar sin levantarse de la cama.
 
 - Suena con la app cerrada, rompiendo silencio y modos de concentracion. Esto
   obliga a **AlarmKit** y por tanto a **iOS 26 como minimo**.
-- Varias alarmas configurables, con repeticion por dias de la semana.
+- Varias alarmas configurables, con repeticion por dias de la semana. **Las dos
+  cosas son de Pro**: en gratis hay una sola alarma activa y sin repeticion, es
+  decir, de un solo uso.
 - **No hay snooze.**
 - Tonos: el sonido de alarma por defecto del sistema mas un catalogo propio en el
   bundle (maximo 30 s cada uno). iOS no da acceso a los tonos del usuario.
@@ -37,7 +42,8 @@ sensores. El boton "Stop" del sistema tampoco se puede ocultar.
 ## Rachas
 
 - Cuenta como dia conseguido: levantarse a la hora fijada y completar el reto.
-- **2 vidas al mes**, no acumulables, repuestas al empezar cada mes.
+- **2 vidas al mes con Pro**, no acumulables, repuestas al empezar cada mes.
+  **El plan gratis no tiene vidas**: el primer fallo rompe la racha.
 - Una vida **congela** la racha: la mantiene, no la incrementa.
 - Se pierde la racha por: pulsar Stop sin hacer el reto, abandonar a mitad, matar
   la app o reiniciar el movil durante el reto, o ignorar la alarma.
@@ -59,16 +65,30 @@ sensores. El boton "Stop" del sistema tampoco se puede ocultar.
 
 ## Monetizacion
 
-Regla: se vende todo lo que rodea a la racha, nunca la racha misma.
+**Gratis**: 1 alarma activa y de un solo uso (sin dias de la semana), los dos
+retos, racha, niveles, insignias basicas, ranking (tu posicion + top 100). **Sin
+vidas**: el primer fallo rompe la racha.
 
-**Gratis**: 1 alarma activa, los dos retos, racha, niveles, insignias basicas,
-las 2 vidas del mes, ranking (tu posicion + top 100).
+**Pro** (~3,99 EUR/mes o 24,99 EUR/ano): alarmas ilimitadas, repeticion por dias
+de la semana, las 2 vidas del mes, catalogo completo de tonos, estadisticas e
+historico completo, filtros de ranking por pais, insignias y temas exclusivos,
+subir la dificultad del reto (nunca bajarla).
 
-**Pro** (~3,99 EUR/mes o 24,99 EUR/ano): alarmas ilimitadas, catalogo completo de
-tonos, estadisticas e historico completo, filtros de ranking por pais, insignias
-y temas exclusivos, subir la dificultad del reto (nunca bajarla).
+**Las vidas pasan a ser de Pro (21/08/2026).** Hasta esa fecha la regla era "se
+vende todo lo que rodea a la racha, nunca la racha misma" y las 2 vidas eran
+gratis, con este argumento escrito: venderlas convierte el ranking en
+pay-to-win. El usuario decidio cambiarlo sabiendo eso. Queda anotado aqui y no
+borrado, porque el argumento sigue siendo cierto y la consecuencia es real: un
+usuario de pago aguanta dos fallos al mes en el ranking y uno gratis, ninguno.
 
-**No se venden vidas extra.** Convertiria el ranking en pay-to-win.
+**Lo que sigue sin venderse**: vidas sueltas por compra puntual, y la racha
+misma. Pagar da vidas para el mes en curso, nunca reconstruye una racha ya rota
+ni sube el contador.
+
+**Al dejar de pagar no se borra nada.** Las alarmas de mas se apagan y la
+repeticion por dias deja de aplicarse, pero siguen guardadas tal cual: volver a
+Pro lo devuelve todo sin reconfigurar. Las vidas que quedasen del mes se pierden
+en el acto.
 
 ## Diseno
 

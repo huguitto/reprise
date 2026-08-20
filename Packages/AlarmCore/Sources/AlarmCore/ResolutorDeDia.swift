@@ -52,9 +52,22 @@ public actor ResolutorDeDia {
     }
 
     private let almacen: any AlmacenDeRachas
+    private let plan: @Sendable () async -> PlanDeSuscripcion
 
-    public init(almacen: any AlmacenDeRachas) {
+    /// `plan` es un cierre y no un valor por un motivo concreto: la suscripcion
+    /// cambia con la app abierta — se compra, se restaura, caduca de madrugada —
+    /// y un dia resuelto con un plan viejo reparte vidas que ya no existen o
+    /// niega las que se acaban de pagar. Se lee en el momento de resolver.
+    ///
+    /// Lo cablea la app contra StoreKit. No hay valor por defecto a proposito:
+    /// equivocarse aqui cuesta la racha de alguien, asi que quien llame tiene
+    /// que decir de que plan habla.
+    public init(
+        almacen: any AlmacenDeRachas,
+        plan: @escaping @Sendable () async -> PlanDeSuscripcion
+    ) {
         self.almacen = almacen
+        self.plan = plan
     }
 
     /// Aplica el resultado de un dia y lo persiste.
@@ -76,7 +89,8 @@ public actor ResolutorDeDia {
             alarmID: alarmID,
             challenge: challenge,
             duration: duration,
-            to: anterior
+            to: anterior,
+            plan: await plan()
         )
         try await almacen.confirmarDia(estado: salida.state, registro: salida.record)
         return Resultado(registro: salida.record, estadoAnterior: anterior, estado: salida.state)
@@ -92,7 +106,7 @@ public actor ResolutorDeDia {
     ///
     /// No distingue "lo mate para saltarme la alarma" de "se me apago el movil":
     /// es imposible desde dentro y la decision de producto es penalizar igual.
-    /// Para eso estan las dos vidas del mes.
+    /// Para eso estan las dos vidas del mes de Pro; en gratis no hay red.
     ///
     /// Devuelve `nil` si no habia nada pendiente, que es el caso normal.
     @discardableResult

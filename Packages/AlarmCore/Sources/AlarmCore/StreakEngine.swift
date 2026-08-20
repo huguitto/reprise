@@ -8,15 +8,56 @@ import Foundation
 /// es el unico paquete con tests obligatorios y por eso no depende de nada.
 public enum StreakEngine {
 
-    /// Repone las vidas si `day` cae en un mes distinto al de la ultima reposicion.
+    /// Repone las vidas si `day` cae en un mes distinto al de la ultima
+    /// reposicion, y las recorta al tope del plan aunque no toque reponer.
     ///
     /// Se llama antes de resolver cualquier dia, no en un temporizador de fin de
     /// mes: asi funciona igual si el usuario tiene la app cerrada tres semanas.
-    public static func refillingLives(_ state: StreakState, on day: Day) -> StreakState {
-        guard state.livesRefilledYearMonth != day.yearMonth else { return state }
+    ///
+    /// El recorte de fuera del mes existe por la suscripcion caducada. Si solo
+    /// se mirase el plan al reponer, quien deja de pagar un dia 3 se quedaria
+    /// las vidas de ese mes hasta el dia 1 siguiente, y las vidas son de Pro.
+    public static func refillingLives(
+        _ state: StreakState,
+        on day: Day,
+        plan: PlanDeSuscripcion
+    ) -> StreakState {
         var next = state
-        next.livesRemaining = StreakState.livesPerMonth
-        next.livesRefilledYearMonth = day.yearMonth
+        if next.livesRefilledYearMonth != day.yearMonth {
+            next.livesRemaining = plan.limites.vidasAlMes
+            next.livesRefilledYearMonth = day.yearMonth
+        }
+        next.livesRemaining = min(next.livesRemaining, plan.limites.vidasAlMes)
+        return next
+    }
+
+    /// Ajusta las vidas cuando el plan cambia a mitad de mes. Se llama desde el
+    /// borde, cuando StoreKit avisa de una compra o de una caducidad.
+    ///
+    /// Al comprar Pro las vidas del mes se conceden en el acto: quien acaba de
+    /// pagar por ellas no espera al dia 1. Al caducar se recortan, por lo mismo
+    /// que explica `refillingLives`.
+    ///
+    /// Nota: subir y bajar de plan dentro del mismo mes vuelve a conceder las
+    /// vidas. Es un agujero conocido y se deja abierto — el antifraude esta
+    /// descartado por decision de producto, y aqui el fraude cuesta una
+    /// suscripcion de verdad.
+    public static func changingPlan(
+        _ state: StreakState,
+        from anterior: PlanDeSuscripcion,
+        to nuevo: PlanDeSuscripcion,
+        on day: Day
+    ) -> StreakState {
+        guard anterior != nuevo else { return state }
+        var next = state
+        let tope = nuevo.limites.vidasAlMes
+
+        if tope > anterior.limites.vidasAlMes {
+            next.livesRemaining = tope
+            next.livesRefilledYearMonth = day.yearMonth
+        } else {
+            next.livesRemaining = min(next.livesRemaining, tope)
+        }
         return next
     }
 
@@ -29,14 +70,21 @@ public enum StreakEngine {
         alarmID: Alarm.ID?,
         challenge: ChallengeType?,
         duration: TimeInterval? = nil,
-        to state: StreakState
+        to state: StreakState,
+        plan: PlanDeSuscripcion
     ) -> (state: StreakState, record: DayRecord) {
-        var next = refillingLives(state, on: day)
+        var next = refillingLives(state, on: day, plan: plan)
 
         // Idempotencia: si el dia ya se conto, no lo contamos otra vez. Sin esto,
         // un reintento de sincronizacion o un relanzamiento de la app duplicaria
         // la racha o gastaria una vida de mas.
         if let last = next.lastCountedDay, last >= day {
+            // Se devuelve `state`, el de entrada, y no `next`: si el dia que
+            // llega es de un mes anterior, `next` trae una reposicion de vidas
+            // con el sello del mes viejo, y quedarsela devolveria vidas ya
+            // gastadas. El recorte por plan caducado no se pierde: entra en la
+            // primera resolucion de verdad, y en el acto si es StoreKit quien
+            // avisa, via `changingPlan`.
             return (state, DayRecord(day: day, alarmID: alarmID, challenge: challenge, outcome: outcome, duration: duration))
         }
 
