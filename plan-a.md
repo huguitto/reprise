@@ -44,4 +44,5 @@ verde. **No lo reescribas.** Puedes anadir, no rehacer.
 
 ## Lo que NO haces
 
-Interfaz, red, sensores. Si necesitas cambiar `Contracts.swift`, para y pregunta.
+Interfaz, red, sensores. Si necesitas cambiar `Contracts.swift`, para y pregunta: hay un hook y un
+check de CI que te lo impiden, y estan ahi por algo.

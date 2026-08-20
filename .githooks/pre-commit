@@ -1,0 +1,39 @@
+#!/bin/sh
+# Avisa antes de dejar tocar los ficheros compartidos.
+#
+# Contracts.swift y Project.swift son los dos ficheros contra los que compilan
+# TODOS los modulos. Si un agente los cambia por su cuenta, rompe el trabajo de
+# los otros tres a la vez y no se entera nadie hasta el siguiente PR.
+#
+# Esto es un aviso temprano para que el agente lo lea aqui y no tres horas
+# despues en el CI. La barrera de verdad esta en el job "Contratos compartidos".
+
+raiz=$(git rev-parse --show-toplevel)
+lista="$raiz/.githooks/ficheros-compartidos.txt"
+[ -f "$lista" ] || exit 0
+
+tocados=""
+while IFS= read -r fichero; do
+    [ -n "$fichero" ] || continue
+    if git diff --cached --name-only | grep -qxF "$fichero"; then
+        tocados="$tocados  - $fichero
+"
+    fi
+done < "$lista"
+
+[ -n "$tocados" ] || exit 0
+
+echo ""
+echo "  ✋ Estas cambiando un fichero compartido:"
+echo ""
+printf "%s" "$tocados"
+echo ""
+echo "  Contra estos ficheros compilan los otros tres agentes. Cambiarlos por tu"
+echo "  cuenta les rompe el trabajo sin que se enteren."
+echo ""
+echo "  Si eres un agente: PARA y preguntalo. Ver CLAUDE.md, regla 2."
+echo ""
+echo "  Si es una decision ya hablada con una persona, ponle a tu PR la etiqueta"
+echo "  'cambio-de-contrato' y repite el commit con --no-verify."
+echo ""
+exit 1
