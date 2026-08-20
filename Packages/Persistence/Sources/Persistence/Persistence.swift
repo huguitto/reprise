@@ -9,6 +9,18 @@ import AlarmCore
 /// Todo lo de aqui funciona sin red, a proposito: la alarma, el reto y la racha
 /// tienen que aguantar en un avion. Lo unico que espera a internet es el ranking,
 /// y eso vive en otro paquete.
+/// Construir dos `ModelContainer` a la vez revienta.
+///
+/// No es teoria: con los tests en paralelo, CoreData peta con SIGSEGV una vez
+/// de cada veinte dentro de `_generateTriggerSQL`, creando las tablas del
+/// esquema. Con las mismas pruebas en serie, cero de veinticinco.
+///
+/// La app monta un solo contenedor al arrancar y nunca veria esto, pero una
+/// fabrica publica que segfaltea si dos hilos la llaman a la vez es una mina
+/// para el que venga detras (una extension, un widget). Sale mas barato
+/// serializar aqui, donde no cuesta nada, que documentarlo y confiar.
+private let cerrojoDelContenedor = NSLock()
+
 public enum Persistence {
 
     /// Version del esquema en disco. Se lee del esquema, no de una constante
@@ -30,6 +42,8 @@ public enum Persistence {
         } else {
             ModelConfiguration(schema: esquema, isStoredInMemoryOnly: enMemoria)
         }
+        cerrojoDelContenedor.lock()
+        defer { cerrojoDelContenedor.unlock() }
         return try ModelContainer(for: esquema, migrationPlan: PlanDeMigracion.self, configurations: configuracion)
     }
 
