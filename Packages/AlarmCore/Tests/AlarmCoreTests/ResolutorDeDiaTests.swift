@@ -48,7 +48,7 @@ struct ResolutorDeDiaTests {
     @Test("Completar el reto guarda estado y registro juntos")
     func completarGuardaLasDosMitades() async throws {
         let almacen = AlmacenFalso(pendiente: pendiente(dia(1)))
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         let r = try await resolutor.resolver(.completado, dia: dia(1), alarmID: alarmID, challenge: .pasos, duration: 42)
 
@@ -61,7 +61,7 @@ struct ResolutorDeDiaTests {
     @Test("Resolver el dia cierra el rastro del reto pendiente")
     func resolverCierraElRastro() async throws {
         let almacen = AlmacenFalso(pendiente: pendiente(dia(1)))
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         try await resolutor.resolver(.completado, dia: dia(1), alarmID: alarmID, challenge: .pasos)
 
@@ -73,7 +73,7 @@ struct ResolutorDeDiaTests {
         let almacen = AlmacenFalso(estado: StreakState(current: 9, best: 9, diasCompletadosTotales: 9),
                                    pendiente: pendiente(dia(1)))
         await almacen.romperElDisco()
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         await #expect(throws: AlmacenFalso.DiscoRoto.self) {
             try await resolutor.resolver(.completado, dia: dia(1), alarmID: self.alarmID, challenge: .pasos)
@@ -89,7 +89,7 @@ struct ResolutorDeDiaTests {
     @Test("Sin rastro pendiente no hay nada que resolver")
     func arranqueLimpio() async throws {
         let almacen = AlmacenFalso(estado: StreakState(current: 3, best: 3, diasCompletadosTotales: 3))
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         #expect(try await resolutor.resolverRetoHuerfano() == nil)
         #expect(await almacen.estado.current == 3, "un arranque normal no toca la racha")
@@ -104,7 +104,7 @@ struct ResolutorDeDiaTests {
                                 lastCountedDay: dia(4), diasCompletadosTotales: 12),
             pendiente: pendiente(dia(5), reto: .sentadillas)
         )
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         let r = try #require(try await resolutor.resolverRetoHuerfano())
 
@@ -122,7 +122,7 @@ struct ResolutorDeDiaTests {
                                 lastCountedDay: dia(4), diasCompletadosTotales: 12),
             pendiente: pendiente(dia(5))
         )
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
         let r = try #require(try await resolutor.resolverRetoHuerfano())
 
         #expect(r.registro.outcome == .salvadoPorVida(.appTerminada))
@@ -138,7 +138,7 @@ struct ResolutorDeDiaTests {
                                 lastCountedDay: dia(4), diasCompletadosTotales: 12),
             pendiente: pendiente(dia(5))
         )
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         try await resolutor.resolverRetoHuerfano()
         let segundo = try await resolutor.resolverRetoHuerfano()
@@ -156,7 +156,7 @@ struct ResolutorDeDiaTests {
                                 lastCountedDay: dia(4), diasCompletadosTotales: 12),
             pendiente: pendiente(dia(5))
         )
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         let r = try #require(try await resolutor.resolverRetoHuerfano())
         #expect(r.registro.day == dia(5), "el fallo es del dia 5, no del dia que se abre la app")
@@ -170,7 +170,7 @@ struct ResolutorDeDiaTests {
                                 lastCountedDay: dia(5), diasCompletadosTotales: 12),
             pendiente: pendiente(dia(5))
         )
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         let r = try #require(try await resolutor.resolverRetoHuerfano())
 
@@ -189,7 +189,7 @@ struct ResolutorDeDiaTests {
                                 livesRefilledYearMonth: dia(1).yearMonth,
                                 lastCountedDay: dia(6), diasCompletadosTotales: 6)
         )
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         let r = try await resolutor.resolver(.completado, dia: dia(7), alarmID: alarmID, challenge: .pasos)
 
@@ -205,7 +205,7 @@ struct ResolutorDeDiaTests {
                                 livesRefilledYearMonth: dia(1).yearMonth,
                                 lastCountedDay: dia(8), diasCompletadosTotales: 8)
         )
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         let r = try await resolutor.resolver(.completado, dia: dia(9), alarmID: alarmID, challenge: .pasos)
 

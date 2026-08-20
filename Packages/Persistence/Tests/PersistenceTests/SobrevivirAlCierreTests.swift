@@ -99,7 +99,7 @@ struct SobrevivirAlCierreTests {
 
         // Segundo arranque: lo primero que hace la app es buscar el rastro.
         let segundoArranque = try temporal.abrir()
-        let resolutor = ResolutorDeDia(almacen: segundoArranque)
+        let resolutor = ResolutorDeDia(almacen: segundoArranque, plan: { .pro })
         let resultado = try #require(try await resolutor.resolverRetoHuerfano())
 
         #expect(resultado.registro.outcome == .fallado(.appTerminada))
@@ -109,7 +109,7 @@ struct SobrevivirAlCierreTests {
 
         // Tercer arranque: ya no hay nada que penalizar.
         let tercerArranque = try temporal.abrir()
-        let segundoResolutor = ResolutorDeDia(almacen: tercerArranque)
+        let segundoResolutor = ResolutorDeDia(almacen: tercerArranque, plan: { .pro })
         #expect(try await segundoResolutor.resolverRetoHuerfano() == nil, "no se puede penalizar dos veces el mismo dia")
         #expect(try await tercerArranque.records(from: dia(5), to: dia(5)).count == 1)
     }
@@ -123,12 +123,12 @@ struct SobrevivirAlCierreTests {
             let almacen = try temporal.abrir()
             try await almacen.begin(PendingChallenge(alarmID: alarmID, challenge: .pasos,
                                                      day: dia(5), startedAt: Date()))
-            let resolutor = ResolutorDeDia(almacen: almacen)
+            let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
             try await resolutor.resolver(.completado, dia: dia(5), alarmID: alarmID, challenge: .pasos, duration: 25)
         }
 
         let segundoArranque = try temporal.abrir()
-        let resolutor = ResolutorDeDia(almacen: segundoArranque)
+        let resolutor = ResolutorDeDia(almacen: segundoArranque, plan: { .pro })
 
         #expect(try await segundoArranque.load().current == 1)
         #expect(try await segundoArranque.load().diasCompletadosTotales == 1)

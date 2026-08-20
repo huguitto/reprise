@@ -2,6 +2,9 @@ import Testing
 import Foundation
 @testable import AlarmCore
 
+// Este banco prueba el motor con Pro, que es el plan que tiene vidas. El plan
+// gratis no tiene ninguna y su comportamiento se prueba aparte, en
+// `LimitesDelPlanTests`.
 @Suite("Motor de rachas")
 struct StreakEngineTests {
 
@@ -10,8 +13,14 @@ struct StreakEngineTests {
         Day(year: year, month: month, day: d)
     }
 
-    private func apply(_ outcome: DayOutcome, _ d: Day, to state: StreakState) -> StreakState {
-        StreakEngine.apply(outcome: outcome, on: d, alarmID: alarmID, challenge: .pasos, to: state).state
+    private func apply(
+        _ outcome: DayOutcome,
+        _ d: Day,
+        to state: StreakState,
+        plan: PlanDeSuscripcion = .pro
+    ) -> StreakState {
+        StreakEngine.apply(outcome: outcome, on: d, alarmID: alarmID, challenge: .pasos,
+                           to: state, plan: plan).state
     }
 
     @Test("Completar el reto suma un dia y actualiza el record")
@@ -59,14 +68,14 @@ struct StreakEngineTests {
         #expect(state.livesRemaining == 1)
 
         // Mes nuevo: vuelve a 2, no a 3.
-        state = StreakEngine.refillingLives(state, on: day(1, month: 9))
+        state = StreakEngine.refillingLives(state, on: day(1, month: 9), plan: .pro)
         #expect(state.livesRemaining == StreakState.livesPerMonth)
     }
 
     @Test("Un mes sin abrir la app repone las vidas igualmente")
     func reposicionTrasMesesInactivo() {
         let state = StreakState(livesRemaining: 0, livesRefilledYearMonth: Day(year: 2026, month: 3, day: 1).yearMonth)
-        let repuesto = StreakEngine.refillingLives(state, on: day(4, month: 11))
+        let repuesto = StreakEngine.refillingLives(state, on: day(4, month: 11), plan: .pro)
         #expect(repuesto.livesRemaining == StreakState.livesPerMonth)
     }
 
@@ -91,7 +100,8 @@ struct StreakEngineTests {
     func registroReflejaLaVida() {
         let result = StreakEngine.apply(
             outcome: .fallado(.appTerminada), on: day(2),
-            alarmID: alarmID, challenge: .sentadillas, to: StreakState(current: 4)
+            alarmID: alarmID, challenge: .sentadillas, to: StreakState(current: 4),
+            plan: .pro
         )
         #expect(result.record.outcome == .salvadoPorVida(.appTerminada))
     }

@@ -124,7 +124,7 @@ struct MigracionTests {
 
         // Cierra la app, la abre y resuelve otro dia de agosto.
         let segundoArranque = try temporal.abrir()
-        let resolutor = ResolutorDeDia(almacen: segundoArranque)
+        let resolutor = ResolutorDeDia(almacen: segundoArranque, plan: { .pro })
         let r = try await resolutor.resolver(.fallado(.ignorada), dia: dia(20), alarmID: alarmID, challenge: .pasos)
 
         #expect(r.estado.livesRemaining == 0, "agosto ya estaba repuesto: no toca otra vez")
@@ -138,7 +138,7 @@ struct MigracionTests {
         try await almacen.save(StreakState(current: 40, best: 40, livesRemaining: 0,
                                            livesRefilledYearMonth: dia(1).yearMonth,
                                            lastCountedDay: dia(31), diasCompletadosTotales: 40))
-        let resolutor = ResolutorDeDia(almacen: almacen)
+        let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         let septiembre = try await resolutor.resolver(.fallado(.abandono), dia: dia(1, mes: 9),
                                                       alarmID: nil, challenge: .pasos)

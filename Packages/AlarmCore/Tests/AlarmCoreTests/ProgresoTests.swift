@@ -61,7 +61,8 @@ struct ProgresoTests {
         #expect(Niveles.nivel(de: state).numero == 5)
 
         state = StreakEngine.apply(outcome: .fallado(.ignorada), on: Day(year: 2026, month: 8, day: 10),
-                                   alarmID: alarmID, challenge: .pasos, to: state).state
+                                   alarmID: alarmID, challenge: .pasos, to: state,
+                                   plan: .pro).state
 
         #expect(state.current == 0)
         #expect(Niveles.nivel(de: state) == Niveles.primero, "sin racha, se vuelve al primer nivel")
@@ -74,12 +75,14 @@ struct ProgresoTests {
         let alarmID = UUID()
         var state = StreakState()
         state = StreakEngine.apply(outcome: .completado, on: Day(year: 2026, month: 8, day: 1),
-                                   alarmID: alarmID, challenge: .pasos, to: state).state
+                                   alarmID: alarmID, challenge: .pasos, to: state,
+                                   plan: .pro).state
         #expect(state.diasCompletadosTotales == 1)
 
         // El mismo dia otra vez no cuenta: idempotencia del motor.
         state = StreakEngine.apply(outcome: .completado, on: Day(year: 2026, month: 8, day: 1),
-                                   alarmID: alarmID, challenge: .pasos, to: state).state
+                                   alarmID: alarmID, challenge: .pasos, to: state,
+                                   plan: .pro).state
         #expect(state.diasCompletadosTotales == 1, "repetir el dia regalaria insignias")
     }
 
@@ -87,7 +90,8 @@ struct ProgresoTests {
     func laVidaNoSumaAlAcumulado() {
         let state = StreakEngine.apply(outcome: .fallado(.abandono), on: Day(year: 2026, month: 8, day: 2),
                                        alarmID: nil, challenge: nil,
-                                       to: StreakState(current: 5, best: 5, diasCompletadosTotales: 5)).state
+                                       to: StreakState(current: 5, best: 5, diasCompletadosTotales: 5),
+                                       plan: .pro).state
         #expect(state.current == 5, "la vida congela")
         #expect(state.diasCompletadosTotales == 5, "pero no te levantaste: no cuenta como dia hecho")
     }
