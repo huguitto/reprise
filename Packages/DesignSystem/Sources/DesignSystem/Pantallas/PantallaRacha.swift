@@ -20,7 +20,7 @@ public struct PantallaRacha: View {
         self.vidas = vidas
     }
 
-    private var nivel: Nivel { DatosDeMentira.nivel(paraRacha: racha) }
+    private var nivel: FichaDeNivel { DatosDeMentira.nivel(paraRacha: racha) }
 
     public var body: some View {
         ScrollView {
@@ -136,7 +136,7 @@ public struct PantallaRacha: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: Espacio.normal) {
                     ForEach(DatosDeMentira.insignias) { ficha in
-                        Insignia(simbolo: ficha.simbolo, nombre: ficha.nombre,
+                        SelloDeInsignia(simbolo: ficha.simbolo, nombre: ficha.nombre,
                                  conseguida: ficha.conseguida)
                     }
                 }
