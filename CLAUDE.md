@@ -20,10 +20,17 @@ Cada agente tiene su briefing. Leelo entero antes de escribir nada:
 
 1. **Cada agente trabaja solo dentro de su paquete.** Si tu tarea es
    `ChallengeKit`, no tocas ficheros de `DesignSystem` ni de `AlarmCore`.
-2. **`Packages/AlarmCore/Sources/AlarmCore/Contracts.swift` es sagrado.** Ahi
-   viven los protocolos y modelos contra los que compilan los demas. Si crees
-   que hay que cambiar algo de ese fichero, **para y preguntalo**: los otros tres
-   agentes estan compilando contra el ahora mismo.
+2. **Los ficheros compartidos no se tocan sin permiso.** Son los listados en
+   `.githooks/ficheros-compartidos.txt`: `Contracts.swift`, donde viven los
+   protocolos y modelos contra los que compilan los demas, y `Project.swift`.
+   Si crees que hay que cambiar algo ahi, **para y preguntalo**: los otros tres
+   agentes estan compilando contra ellos ahora mismo.
+
+   Hay dos barreras y no son decorativas: un hook `pre-commit` te para al hacer
+   el commit, y el check de CI **Contratos compartidos** tumba el PR. Para
+   levantarlas hace falta que una persona le ponga al PR la etiqueta
+   `cambio-de-contrato`. Saltarte el hook con `--no-verify` no te sirve de nada:
+   el CI te para igual.
 3. **Nadie hace push a `main`.** Trabajas en tu rama, abres PR, lo revisa una
    persona. Hay un hook en `.githooks/pre-push` que lo bloquea. **No lo saltes
    con `--no-verify`**: el repo es privado y GitHub no puede imponerlo por su

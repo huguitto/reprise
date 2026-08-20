@@ -15,7 +15,7 @@ jobs:
     # quedan en Swift 6.1 y no pueden ni leer nuestros Package.swift.
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: swift --version
       - name: Tests de AlarmCore
         # Corren en el host, sin simulador: segundos en vez de minutos.
@@ -25,7 +25,7 @@ jobs:
     name: Compila para iOS
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Instalar Tuist
         run: brew install --cask tuist
       - name: Generar el proyecto
@@ -34,3 +34,37 @@ jobs:
         run: |
           xcodebuild -workspace RepRise.xcworkspace -scheme RepRise \
             -destination 'generic/platform=iOS Simulator' -quiet build
+
+  contratos:
+    name: Contratos compartidos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Nadie toca los contratos sin permiso
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          ETIQUETAS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          # Contracts.swift y Project.swift son la base contra la que compilan
+          # los cuatro agentes. Un cambio silencioso ahi rompe tres ramas a la
+          # vez. Para tocarlos hace falta una decision humana, y la forma de
+          # dejarla por escrito es la etiqueta 'cambio-de-contrato'.
+          if printf '%s' "$ETIQUETAS" | tr ',' '\n' | grep -qx 'cambio-de-contrato'; then
+            echo "Etiqueta 'cambio-de-contrato' presente: cambio autorizado."
+            exit 0
+          fi
+
+          tocados=$(gh pr view "$PR" --json files -q '.files[].path' \
+            | grep -xF -f .githooks/ficheros-compartidos.txt || true)
+
+          if [ -n "$tocados" ]; then
+            echo "::error::Este PR cambia ficheros compartidos sin autorizacion:"
+            printf '%s\n' "$tocados"
+            echo ""
+            echo "Contra estos ficheros compilan los otros agentes."
+            echo "Si el cambio esta hablado y decidido, pon la etiqueta"
+            echo "'cambio-de-contrato' al PR y vuelve a lanzar el check."
+            exit 1
+          fi
+          echo "Contratos intactos."
