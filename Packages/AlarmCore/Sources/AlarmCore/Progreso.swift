@@ -65,8 +65,8 @@ public enum Niveles {
         Nivel(numero: 4, nombre: "Quincena", diasNecesarios: 15),
         Nivel(numero: 5, nombre: "Mes en pie", diasNecesarios: 30),
         Nivel(numero: 6, nombre: "Trimestre", diasNecesarios: 90),
-        Nivel(numero: 7, nombre: "Medio ano", diasNecesarios: 180),
-        Nivel(numero: 8, nombre: "Ano en pie", diasNecesarios: 365)
+        Nivel(numero: 7, nombre: "Medio año", diasNecesarios: 180),
+        Nivel(numero: 8, nombre: "Año en pie", diasNecesarios: 365)
     ]
 
     public static var primero: Nivel { todos[0] }
@@ -116,11 +116,11 @@ public enum Insignia: String, Identifiable, CaseIterable, Codable, Sendable {
 
     public var nombre: String {
         switch self {
-        case .primerDia: "Primer dia"
+        case .primerDia: "Primer día"
         case .semanaEnPie: "Siete seguidos"
         case .mesEnPie: "Treinta seguidos"
         case .cienSeguidos: "Cien seguidos"
-        case .anoEnPie: "Un ano entero"
+        case .anoEnPie: "Un año entero"
         case .veterano: "Veterano"
         }
     }
@@ -129,10 +129,10 @@ public enum Insignia: String, Identifiable, CaseIterable, Codable, Sendable {
         switch self {
         case .primerDia: "Completaste tu primer reto."
         case .semanaEnPie: "Una semana sin fallar."
-        case .mesEnPie: "Treinta dias seguidos en pie."
-        case .cienSeguidos: "Cien dias seguidos."
-        case .anoEnPie: "Trescientos sesenta y cinco dias seguidos."
-        case .veterano: "Trescientos sesenta y cinco dias completados en total."
+        case .mesEnPie: "Treinta días seguidos en pie."
+        case .cienSeguidos: "Cien días seguidos."
+        case .anoEnPie: "Trescientos sesenta y cinco días seguidos."
+        case .veterano: "Trescientos sesenta y cinco días completados en total."
         }
     }
 
