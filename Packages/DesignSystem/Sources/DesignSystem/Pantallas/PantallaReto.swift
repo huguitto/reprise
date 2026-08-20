@@ -110,20 +110,12 @@ public struct PantallaReto: View {
     }
 }
 
-#Preview("Reto en curso · claro") {
-    PantallaReto(reto: .pasos, hechos: 7, segundos: 47)
-}
-
-#Preview("Reto en curso · oscuro") {
+#Preview("Reto en curso") {
     PantallaReto(reto: .pasos, hechos: 7, segundos: 47)
         .preferredColorScheme(.dark)
 }
 
-#Preview("Reto terminado · claro") {
-    PantallaReto(reto: .sentadillas, hechos: 10, segundos: 62)
-}
-
-#Preview("Reto terminado · oscuro") {
+#Preview("Reto terminado") {
     PantallaReto(reto: .sentadillas, hechos: 10, segundos: 62)
         .preferredColorScheme(.dark)
 }

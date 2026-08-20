@@ -127,10 +127,6 @@ struct MuestraDeBarra: View {
     }
 }
 
-#Preview("Barra de secciones · claro") {
-    MuestraDeBarra()
-}
-
-#Preview("Barra de secciones · oscuro") {
+#Preview("Barra de secciones") {
     MuestraDeBarra().preferredColorScheme(.dark)
 }

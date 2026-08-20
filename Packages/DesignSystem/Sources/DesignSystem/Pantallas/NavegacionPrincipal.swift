@@ -43,18 +43,14 @@ public struct NavegacionPrincipal: View {
     }
 }
 
-#Preview("Navegación · claro") {
-    NavegacionPrincipal()
-}
-
-#Preview("Navegación · oscuro") {
+#Preview("Navegación") {
     NavegacionPrincipal().preferredColorScheme(.dark)
 }
 
 #Preview("Navegación · racha") {
-    NavegacionPrincipal(seccion: .racha)
+    NavegacionPrincipal(seccion: .racha).preferredColorScheme(.dark)
 }
 
 #Preview("Navegación · ranking") {
-    NavegacionPrincipal(seccion: .ranking)
+    NavegacionPrincipal(seccion: .ranking).preferredColorScheme(.dark)
 }

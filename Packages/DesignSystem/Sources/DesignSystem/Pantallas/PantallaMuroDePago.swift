@@ -145,10 +145,6 @@ private struct TarjetaDePlan: View {
     }
 }
 
-#Preview("Muro de pago · claro") {
-    PantallaMuroDePago()
-}
-
-#Preview("Muro de pago · oscuro") {
+#Preview("Muro de pago") {
     PantallaMuroDePago().preferredColorScheme(.dark)
 }

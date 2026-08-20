@@ -189,10 +189,6 @@ struct TiraDeRacha: View {
     }
 }
 
-#Preview("Lista de alarmas · claro") {
-    PantallaListaDeAlarmas()
-}
-
-#Preview("Lista de alarmas · oscuro") {
+#Preview("Lista de alarmas") {
     PantallaListaDeAlarmas().preferredColorScheme(.dark)
 }
