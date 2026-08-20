@@ -75,3 +75,4 @@ public protocol PendingChallengeRepository: Sendable {
     func begin(_ pending: PendingChallenge) async throws
     func clear() async throws
 }
+// linea de prueba, esta rama se borra
