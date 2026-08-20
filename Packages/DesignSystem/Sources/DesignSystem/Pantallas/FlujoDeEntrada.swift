@@ -1,7 +1,10 @@
 import SwiftUI
 
 /// Lo que se ve al abrir la app: la presentacion y, al pulsar "Empezar" o
-/// "Saltar", la pantalla principal.
+/// "Saltar", la app entera — `NavegacionPrincipal`, con su barra de secciones.
+/// No la lista a secas: aterrizar en una pantalla sin barra deja al recien
+/// llegado sin ver que hay racha y ranking, que es justo lo que le acaba de
+/// prometer la tercera pagina.
 ///
 /// Las dos salidas de la presentacion llevan al mismo sitio a proposito. La
 /// diferencia entre pasarse las tres paginas y saltarselas es lo que sabe el
@@ -19,7 +22,7 @@ public struct FlujoDeEntrada: View {
     public var body: some View {
         ZStack {
             if presentacionHecha {
-                PantallaListaDeAlarmas()
+                NavegacionPrincipal()
                     .transition(.opacity)
             } else {
                 PantallaPresentacion {
@@ -31,10 +34,6 @@ public struct FlujoDeEntrada: View {
     }
 }
 
-#Preview("Entrada · claro") {
-    FlujoDeEntrada()
-}
-
-#Preview("Entrada · oscuro") {
+#Preview("Entrada") {
     FlujoDeEntrada().preferredColorScheme(.dark)
 }
