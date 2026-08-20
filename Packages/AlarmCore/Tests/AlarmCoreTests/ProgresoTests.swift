@@ -10,47 +10,63 @@ struct ProgresoTests {
     @Test("Un usuario recien instalado ya tiene nivel, no esta fuera de la tabla")
     func usuarioNuevoTieneNivel() {
         #expect(Niveles.nivel(de: StreakState()) == Niveles.primero)
-        #expect(Niveles.primero.diasNecesarios == 0)
+        #expect(Niveles.primero.desde == 0)
     }
 
-    @Test("La escalera esta ordenada y sin escalones repetidos")
+    @Test("La escalera esta ordenada y no deja huecos entre tramos")
     func escaleraCoherente() {
         let numeros = Niveles.todos.map(\.numero)
-        let dias = Niveles.todos.map(\.diasNecesarios)
         #expect(numeros == Array(1...Niveles.todos.count))
-        #expect(dias == dias.sorted())
-        #expect(Set(dias).count == dias.count, "dos niveles con el mismo umbral harian inalcanzable uno de los dos")
+
+        for (nivel, siguiente) in zip(Niveles.todos, Niveles.todos.dropFirst()) {
+            #expect(nivel.hasta == siguiente.desde, "el tramo de un nivel tiene que acabar donde empieza el siguiente")
+            #expect(nivel.desde < siguiente.desde)
+        }
+        #expect(Niveles.ultimo.hasta == nil, "el ultimo nivel no tiene techo")
     }
 
     @Test("Se sube justo al alcanzar el umbral, no un dia antes")
     func umbralExacto() {
-        for nivel in Niveles.todos where nivel.diasNecesarios > 0 {
-            #expect(Niveles.nivel(diasCompletados: nivel.diasNecesarios) == nivel)
-            #expect(Niveles.nivel(diasCompletados: nivel.diasNecesarios - 1).numero == nivel.numero - 1)
+        for nivel in Niveles.todos where nivel.desde > 0 {
+            #expect(Niveles.nivel(racha: nivel.desde) == nivel)
+            #expect(Niveles.nivel(racha: nivel.desde - 1).numero == nivel.numero - 1)
         }
     }
 
     @Test("Pasarse del ultimo umbral deja en el ultimo nivel")
     func techoDeLaEscalera() {
-        #expect(Niveles.nivel(diasCompletados: 10_000) == Niveles.ultimo)
+        #expect(Niveles.nivel(racha: 10_000) == Niveles.ultimo)
         #expect(Niveles.siguiente(a: Niveles.ultimo) == nil)
     }
 
-    @Test("Romper la racha no baja de nivel")
-    func perderLaRachaNoBajaNivel() {
+    @Test("La tabla de niveles es la del sistema de diseno, tramo por tramo")
+    func laTablaNoSePuedeDesviar() {
+        // Clavada aqui a proposito. El nivel se pinta en la pantalla de racha, y
+        // si esta tabla y la del diseno dejan de coincidir, el usuario ve un
+        // nivel distinto segun donde mire. Ya paso una vez.
+        let esperada = [(1, 0), (2, 3), (3, 7), (4, 14), (5, 30), (6, 60)]
+        #expect(Niveles.todos.map { ($0.numero, $0.desde) }.elementsEqual(esperada, by: ==))
+    }
+
+    @Test("Romper la racha baja de nivel")
+    func romperLaRachaBajaDeNivel() {
+        // Decision de producto: el nivel va con la racha actual, no con lo
+        // acumulado. Es una lectura de como vas ahora, no un trofeo, asi que
+        // se pierde con ella.
         let alarmID = UUID()
         var state = StreakState(current: 40, best: 40, livesRemaining: 0,
                                 livesRefilledYearMonth: Day(year: 2026, month: 8, day: 1).yearMonth,
                                 lastCountedDay: Day(year: 2026, month: 8, day: 9),
                                 diasCompletadosTotales: 40)
-        let nivelAntes = Niveles.nivel(de: state)
+        #expect(Niveles.nivel(de: state).numero == 5)
 
         state = StreakEngine.apply(outcome: .fallado(.ignorada), on: Day(year: 2026, month: 8, day: 10),
                                    alarmID: alarmID, challenge: .pasos, to: state).state
 
-        #expect(state.current == 0, "la racha si se pierde")
-        #expect(Niveles.nivel(de: state) == nivelAntes, "el nivel no, o el fallo castigaria dos veces")
-        #expect(state.diasCompletadosTotales == 40)
+        #expect(state.current == 0)
+        #expect(Niveles.nivel(de: state) == Niveles.primero, "sin racha, se vuelve al primer nivel")
+        #expect(state.diasCompletadosTotales == 40, "lo acumulado no se toca: sostiene insignias y estadisticas")
+        #expect(state.best == 40, "y el record tampoco")
     }
 
     @Test("El acumulado sube un dia por reto completado, y solo uno")
@@ -64,7 +80,7 @@ struct ProgresoTests {
         // El mismo dia otra vez no cuenta: idempotencia del motor.
         state = StreakEngine.apply(outcome: .completado, on: Day(year: 2026, month: 8, day: 1),
                                    alarmID: alarmID, challenge: .pasos, to: state).state
-        #expect(state.diasCompletadosTotales == 1, "repetir el dia regalaria niveles")
+        #expect(state.diasCompletadosTotales == 1, "repetir el dia regalaria insignias")
     }
 
     @Test("Una vida salva la racha pero no suma dia acumulado")
@@ -76,33 +92,45 @@ struct ProgresoTests {
         #expect(state.diasCompletadosTotales == 5, "pero no te levantaste: no cuenta como dia hecho")
     }
 
-    @Test("El progreso mide el tramo del nivel actual, no el total")
-    func fraccionDelTramo() {
-        // Nivel 3 (7 dias) -> nivel 4 (15 dias): tramo de 8 dias.
-        let p = Niveles.progreso(de: StreakState(diasCompletadosTotales: 11))
-        #expect(p.nivel.numero == 3)
-        #expect(p.siguiente?.numero == 4)
-        #expect(p.diasQueFaltan == 4)
-        #expect(abs(p.fraccion - 0.5) < 0.0001)
+    @Test("El progreso mide el tramo del nivel actual, no la racha entera")
+    func progresoDelTramo() {
+        // Nivel 3 va de racha 7 a racha 14: tramo de 7 dias.
+        let nivel = Niveles.nivel(racha: 10)
+        #expect(nivel.numero == 3)
+        #expect(nivel.diasQueFaltan(conRacha: 10) == 4)
+        #expect(abs(nivel.progreso(conRacha: 10) - 3.0 / 7.0) < 0.0001)
     }
 
     @Test("En el ultimo nivel el progreso esta lleno y no falta nada")
     func progresoEnElTecho() {
-        let p = Niveles.progreso(de: StreakState(diasCompletadosTotales: 900))
-        #expect(p.siguiente == nil)
-        #expect(p.fraccion == 1)
-        #expect(p.diasQueFaltan == 0)
+        let nivel = Niveles.nivel(racha: 900)
+        #expect(nivel == Niveles.ultimo)
+        #expect(nivel.progreso(conRacha: 900) == 1)
+        #expect(nivel.diasQueFaltan(conRacha: 900) == 0)
     }
 
-    @Test("El ascenso se avisa una sola vez")
+    @Test("El progreso no se sale de sus limites")
+    func progresoAcotado() {
+        for nivel in Niveles.todos {
+            for racha in [0, 1, 5, 13, 29, 59, 400] {
+                let p = nivel.progreso(conRacha: racha)
+                #expect(p >= 0 && p <= 1, "nivel \(nivel.numero) con racha \(racha) dio \(p)")
+            }
+        }
+    }
+
+    @Test("El ascenso se avisa una sola vez, y bajar no se avisa")
     func ascensoSoloUnaVez() {
-        let antes = StreakState(diasCompletadosTotales: 2)
-        let justo = StreakState(diasCompletadosTotales: 3)
-        let despues = StreakState(diasCompletadosTotales: 4)
+        let antes = StreakState(current: 2, best: 2, diasCompletadosTotales: 2)
+        let justo = StreakState(current: 3, best: 3, diasCompletadosTotales: 3)
+        let despues = StreakState(current: 4, best: 4, diasCompletadosTotales: 4)
 
         #expect(Niveles.ascenso(de: antes, a: justo)?.numero == 2)
         #expect(Niveles.ascenso(de: justo, a: despues) == nil, "seguir en el mismo nivel no es un ascenso")
         #expect(Niveles.ascenso(de: justo, a: justo) == nil)
+
+        let rota = StreakState(current: 0, best: 3, diasCompletadosTotales: 3)
+        #expect(Niveles.ascenso(de: justo, a: rota) == nil, "bajar no es un ascenso: ya se avisa de la racha rota")
     }
 
     // MARK: - Insignias
