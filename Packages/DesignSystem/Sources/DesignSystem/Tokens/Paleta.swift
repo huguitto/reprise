@@ -22,7 +22,7 @@ public struct Tinte: Sendable, Hashable {
 /// Los colores de RepRise.
 ///
 /// Base monocroma en gris calido muy oscuro y **un solo color de acento**: el
-/// naranja. Si algo necesita destacar y no es el acento, se resuelve con peso
+/// azul del sistema. Si algo necesita destacar y no es el acento, se resuelve con peso
 /// tipografico o con relieve, nunca con un segundo color.
 ///
 /// **La app es solo oscura.** No hay pareja clara ni color que cambie con el
@@ -66,9 +66,13 @@ public enum Paleta {
 
     /// El unico color de la app. Se usa con cuentagotas: lo que esta activo,
     /// lo que progresa y poco mas.
-    public static let acento = Tinte(0xFF7A2F).color
+    ///
+    /// Es el azul de sistema de Apple en su version oscura (`systemBlue` en
+    /// modo oscuro), no el claro: el claro esta calibrado para ir sobre blanco
+    /// y aqui se apaga.
+    public static let acento = Tinte(0x0A84FF).color
     /// Fondo de las pastillas de acento. Nunca lleva texto de acento encima.
-    public static let acentoTenue = Tinte(0x3B2314).color
+    public static let acentoTenue = Tinte(0x12283F).color
 
     // MARK: - Pantalla del reto
 
