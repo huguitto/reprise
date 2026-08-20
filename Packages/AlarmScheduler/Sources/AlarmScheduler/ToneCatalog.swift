@@ -72,7 +72,7 @@ public enum ToneCatalog {
         public var mensaje: String {
             switch self {
             case let .ficheroQueFalta(toneID, fileName):
-                "El tono '\(toneID)' apunta a '\(fileName)' y ese fichero no esta en el bundle."
+                "El tono '\(toneID)' apunta a '\(fileName)' y ese fichero no está en el bundle."
             case let .demasiadoLargo(toneID, segundos):
                 "El tono '\(toneID)' dura \(String(format: "%.1f", segundos)) s y AlarmKit corta a los 30."
             case let .idRepetido(id):

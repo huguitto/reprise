@@ -25,9 +25,9 @@ public enum AlarmSchedulerError: Error, Sendable, Hashable {
         case .autorizacionPendiente:
             "Falta conceder el permiso de alarmas."
         case .alarmKitNoDisponible:
-            "Las alarmas del sistema no estan disponibles en este entorno."
+            "Las alarmas del sistema no están disponibles en este entorno."
         case .limiteDeAlarmasAlcanzado:
-            "Has llegado al maximo de alarmas que iOS permite tener programadas a la vez."
+            "Has llegado al máximo de alarmas que iOS permite tener programadas a la vez."
         case let .horaInvalida(hour, minute):
             "La hora \(hour):\(minute) no existe."
         case let .fallaDeAlarmKit(descripcion):
