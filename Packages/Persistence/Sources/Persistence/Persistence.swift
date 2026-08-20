@@ -1,17 +1,39 @@
 import Foundation
+import SwiftData
 import AlarmCore
 
-/// TAREA DEL AGENTE A (segunda mitad).
+/// Punto de entrada del almacen. La app monta el contenedor una vez, al
+/// arrancar, y a partir de ahi inyecta `AlmacenSwiftData` en los protocolos de
+/// `Contracts.swift`.
 ///
-/// Implementa `AlarmRepository`, `StreakRepository`, `DayRecordRepository` y
-/// `PendingChallengeRepository` con SwiftData. Requisitos que no son negociables:
-///
-/// - Todo funciona sin red. La app tiene que despertar y contar la racha en un
-///   avion; el ranking se sincroniza cuando haya internet.
-/// - `PendingChallengeRepository.begin` tiene que escribir a disco ANTES de que
-///   arranque el reto y sobrevivir a que maten la app. Es lo unico que distingue
-///   "reinicio el movil para saltarse la alarma" de "se le fue la bateria".
-/// - Las migraciones se declaran explicitamente desde el primer dia.
+/// Todo lo de aqui funciona sin red, a proposito: la alarma, el reto y la racha
+/// tienen que aguantar en un avion. Lo unico que espera a internet es el ranking,
+/// y eso vive en otro paquete.
 public enum Persistence {
-    public static let schemaVersion = 1
+
+    /// Version del esquema en disco. Se lee del esquema, no de una constante
+    /// aparte, para que no puedan desincronizarse.
+    public static var version: Schema.Version { EsquemaV1.versionIdentifier }
+
+    /// El contenedor, con el plan de migracion enchufado desde el primer dia.
+    ///
+    /// - Parameters:
+    ///   - enMemoria: para tests. En memoria no hay fichero, asi que tampoco hay
+    ///     nada que sobreviva a cerrar la app.
+    ///   - url: fichero concreto. Sirve para los tests que necesitan comprobar
+    ///     justo eso, que lo guardado sigue ahi al volver a abrir. Si se pasa,
+    ///     manda sobre `enMemoria`.
+    public static func contenedor(enMemoria: Bool = false, url: URL? = nil) throws -> ModelContainer {
+        let esquema = Schema(versionedSchema: EsquemaV1.self)
+        let configuracion = if let url {
+            ModelConfiguration(schema: esquema, url: url)
+        } else {
+            ModelConfiguration(schema: esquema, isStoredInMemoryOnly: enMemoria)
+        }
+        return try ModelContainer(for: esquema, migrationPlan: PlanDeMigracion.self, configurations: configuracion)
+    }
+
+    public static func almacen(enMemoria: Bool = false, url: URL? = nil) throws -> AlmacenSwiftData {
+        AlmacenSwiftData(modelContainer: try contenedor(enMemoria: enMemoria, url: url))
+    }
 }
