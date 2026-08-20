@@ -9,6 +9,7 @@ public struct PantallaRacha: View {
     private let racha: Int
     private let mejor: Int
     private let vidas: Int
+    @State private var mostrarAjustes = false
 
     public init(
         racha: Int = DatosDeMentira.rachaActual,
@@ -26,8 +27,9 @@ public struct PantallaRacha: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
                 Cabecera("Racha", subtitulo: nivel.nombre.lowercased()) {
-                    Button { } label: { Image(systemName: "gearshape") }
+                    Button { mostrarAjustes = true } label: { Image(systemName: "gearshape") }
                         .buttonStyle(.redondo)
+                        .accessibilityLabel(Text("Ajustes"))
                 }
 
                 numeroGrande
@@ -40,6 +42,7 @@ public struct PantallaRacha: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
+        .sheet(isPresented: $mostrarAjustes) { PantallaAjustes() }
     }
 
     // MARK: - Piezas

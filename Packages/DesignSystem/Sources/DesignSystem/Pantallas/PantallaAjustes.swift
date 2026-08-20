@@ -7,6 +7,9 @@ public struct PantallaAjustes: View {
     @State private var tema: Tema = .sistema
     @State private var retoPorDefecto: ChallengeType = .pasos
     @State private var vibrar = true
+    @State private var mostrarPro = false
+    @State private var mostrarGaleria = false
+    @Environment(\.dismiss) private var cerrar
     private let esPro: Bool
 
     public init(esPro: Bool = false) {
@@ -23,12 +26,14 @@ public struct PantallaAjustes: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
                 Cabecera("Ajustes") {
-                    Button { } label: { Image(systemName: "xmark") }
+                    Button { cerrar() } label: { Image(systemName: "xmark") }
                         .buttonStyle(.redondo)
+                        .accessibilityLabel(Text("Cerrar"))
                 }
 
                 if !esPro {
-                    tarjetaDePro
+                    Button { mostrarPro = true } label: { tarjetaDePro }
+                        .buttonStyle(.plain)
                 }
 
                 seccion("Cuenta") {
@@ -84,10 +89,25 @@ public struct PantallaAjustes: View {
                         FilaDeAjuste(icono: "info.circle", titulo: "Versión", detalle: "1.0 (1)")
                     }
                 }
+
+                // Puerta de servicio: el muestrario del sistema de diseno, para
+                // poder mirar las piezas en el movil de verdad. Se ira cuando
+                // la app este montada del todo.
+                seccion("Para el equipo") {
+                    Bloque {
+                        Button { mostrarGaleria = true } label: {
+                            FilaDeAjuste(icono: "swatchpalette", titulo: "Sistema de diseño",
+                                         detalle: "Pantallas y piezas") { chevron }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
+        .sheet(isPresented: $mostrarPro) { PantallaMuroDePago() }
+        .sheet(isPresented: $mostrarGaleria) { GaleriaDeDiseno() }
     }
 
     private var chevron: some View {

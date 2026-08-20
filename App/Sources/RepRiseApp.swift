@@ -11,23 +11,21 @@ struct RepRiseApp: App {
     }
 }
 
-/// Raiz provisional: la galeria del sistema de diseno.
+/// La raiz de la app: la navegacion de tres secciones.
 ///
-/// Todavia no hay app que montar. `AlarmScheduler`, `ChallengeKit` y el motor
-/// de rachas estan en marcha en otras ramas, y hasta que aterricen no existe el
-/// estado real que estas pantallas tendrian que leer.
+/// Lo que se ve al abrir ya es la forma final —Alarmas, Racha y Ranking abajo,
+/// Ajustes y Pro en hoja— pero por dentro todo son **datos de mentira**. El
+/// motor de rachas, el programador de alarmas y los sensores estan en marcha en
+/// otras ramas; cuando aterricen, estas mismas pantallas pasan a leer el estado
+/// de verdad y esta raiz no tiene que cambiar de forma.
 ///
-/// Mientras tanto la raiz abre `GaleriaDeDiseno`, que da acceso a las siete
-/// pantallas y al muestrario de piezas con datos de mentira. Sirve para lo
-/// unico que hace falta ahora: instalar en el iPhone y juzgar el neumorfismo,
-/// el contraste del reto y el modo oscuro donde de verdad se ven, que es en la
-/// pantalla del telefono y no en un `#Preview`.
-///
-/// Cuando los otros paquetes esten, esto pasa a ser el arranque de verdad:
-/// `PantallaListaDeAlarmas` sobre el repositorio real.
+/// Falta una cosa que no se puede montar desde aqui: **el reto no se alcanza**.
+/// No es un olvido, es que no se visita a voluntad — aparece cuando suena la
+/// alarma, y quien lo arranca es AlarmScheduler. Hasta entonces se mira desde
+/// el muestrario, en Ajustes > Sistema de diseno.
 struct RootView: View {
     var body: some View {
-        GaleriaDeDiseno()
+        NavegacionPrincipal()
             .tint(DesignSystem.acento)
     }
 }
