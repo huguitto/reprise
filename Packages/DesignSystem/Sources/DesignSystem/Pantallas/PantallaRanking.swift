@@ -8,6 +8,7 @@ import SwiftUI
 /// consigue que nadie sepa que existe.
 public struct PantallaRanking: View {
     @State private var ambito: Ambito = .mundial
+    @State private var mostrarPro = false
     private let esPro: Bool
 
     public init(esPro: Bool = false) {
@@ -63,7 +64,7 @@ public struct PantallaRanking: View {
                     .accessibilityHidden(tapado)
 
                     if tapado {
-                        CarteldePro()
+                        CarteldePro { mostrarPro = true }
                     }
                 }
                 .animation(.easeOut(duration: 0.2), value: tapado)
@@ -81,6 +82,7 @@ public struct PantallaRanking: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
+        .sheet(isPresented: $mostrarPro) { PantallaMuroDePago() }
     }
 }
 
@@ -133,6 +135,8 @@ struct FilaDeRanking: View {
 }
 
 private struct CarteldePro: View {
+    let alPulsar: () -> Void
+
     var body: some View {
         VStack(spacing: Espacio.normal) {
             Image(systemName: "flag.fill")
@@ -145,7 +149,7 @@ private struct CarteldePro: View {
                 .font(Tipografia.pie)
                 .foregroundStyle(Paleta.textoSuave)
                 .multilineTextAlignment(.center)
-            Button("Ver Pro") {}
+            Button("Ver Pro", action: alPulsar)
                 .buttonStyle(.principal)
                 .frame(maxWidth: 200)
         }

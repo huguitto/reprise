@@ -79,6 +79,20 @@ y temas exclusivos, subir la dificultad del reto (nunca bajarla).
 - Espanol unicamente.
 - Descartadas las referencias 03 y 04 (oscuro/neon) por genericas.
 
+## Navegacion
+
+Decidido el 20/08/2026, que no estaba y hacia falta para poder montar la app.
+
+- **Tres secciones**, en una barra abajo: **Alarmas · Racha · Ranking**. La app
+  entra siempre por Alarmas.
+- **Ajustes y el muro de pago no son secciones**: se abren en hoja desde donde
+  se piden, y por eso llevan una equis y no un boton de volver.
+- **El reto no se visita.** No esta en la barra ni se alcanza a mano: aparece
+  cuando suena la alarma. Ponerlo a un toque de distancia seria dar la forma de
+  saltarselo.
+- La barra es propia, no la del `TabView` del sistema: en iOS 26 esa es de
+  vidrio y aqui todo es plastico mate con la luz fija arriba a la izquierda.
+
 ## Descartado explicitamente
 
 Territorios geograficos tipo bandas *(idea original del usuario, eliminada por
