@@ -73,11 +73,7 @@ private struct CantoMoleteado: View {
     }
 }
 
-#Preview("Esfera · claro") {
-    MuestraDeEsfera()
-}
-
-#Preview("Esfera · oscuro") {
+#Preview("Esfera") {
     MuestraDeEsfera().preferredColorScheme(.dark)
 }
 

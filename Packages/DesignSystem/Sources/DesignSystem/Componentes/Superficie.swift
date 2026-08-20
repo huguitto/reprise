@@ -73,11 +73,7 @@ extension View {
     }
 }
 
-#Preview("Superficies · claro") {
-    MuestraDeSuperficies()
-}
-
-#Preview("Superficies · oscuro") {
+#Preview("Superficies") {
     MuestraDeSuperficies().preferredColorScheme(.dark)
 }
 

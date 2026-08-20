@@ -32,14 +32,16 @@ por paises · ajustes · muro de pago.
    medio abrir.** Ahi el contraste manda sobre la sutileza: contador enorme,
    legible de un vistazo, nada de grises sobre grises. El neumorfismo es precioso
    y funciona con contrastes bajisimos — en esa pantalla concreta, subelo.
-2. **Modo claro principal, modo oscuro real.** El oscuro no es un afterthought: es
-   literalmente cuando se usa la app.
+2. **Solo modo oscuro.** *(Cambiado el 20/08/2026; antes era "modo claro
+   principal, modo oscuro real".)* Se uso el argumento hasta el final: si el
+   oscuro es literalmente cuando se usa la app, el claro sobra. No hay ajuste de
+   tema ni paleta doble.
 
 Todos los textos en espanol.
 
 ## Terminado cuando
 
-- Cada pantalla tiene su `#Preview` en claro y en oscuro.
+- Cada pantalla tiene su `#Preview`.
 - Se ve bien en el iPhone del usuario, que puede instalar con cuenta gratuita de
   Apple: no necesitas esperar a nada.
 - Nada tuyo importa `AlarmKit` ni `CoreMotion`. Si lo necesitas, es que estas
