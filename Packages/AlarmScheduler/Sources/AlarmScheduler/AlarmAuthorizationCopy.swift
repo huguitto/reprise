@@ -11,7 +11,7 @@ public enum AlarmAuthorizationCopy {
 
     public static let explicacion = """
     Sin permiso de alarmas, iOS no deja que RepRise suene con la app cerrada, \
-    ni que rompa el modo silencio o el modo de concentracion. Es decir: no hay \
+    ni que rompa el modo silencio o el modo de concentración. Es decir: no hay \
     despertador.
 
     El permiso se concede una sola vez y desde Ajustes.
