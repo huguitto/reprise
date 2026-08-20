@@ -44,13 +44,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
-          ETIQUETAS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           # Contracts.swift y Project.swift son la base contra la que compilan
           # los cuatro agentes. Un cambio silencioso ahi rompe tres ramas a la
           # vez. Para tocarlos hace falta una decision humana, y la forma de
           # dejarla por escrito es la etiqueta 'cambio-de-contrato'.
-          if printf '%s' "$ETIQUETAS" | tr ',' '\n' | grep -qx 'cambio-de-contrato'; then
+          # Las etiquetas se leen EN VIVO, no del payload del evento. Si se
+          # leyeran del payload, poner la etiqueta y relanzar el check no
+          # serviria de nada: el relanzado reproduce el evento original, sin
+          # etiqueta, y el PR quedaria bloqueado para siempre.
+          etiquetas=$(gh pr view "$PR" --json labels -q '.labels[].name')
+
+          if printf '%s\n' "$etiquetas" | grep -qx 'cambio-de-contrato'; then
             echo "Etiqueta 'cambio-de-contrato' presente: cambio autorizado."
             exit 0
           fi
