@@ -1,0 +1,27 @@
+#!/bin/sh
+# Bloquea el push directo a main.
+#
+# Suplente de la proteccion de rama de GitHub, que en repos privados exige plan
+# de pago. Ojo: es una barandilla, no un muro — `--no-verify` la salta. Sirve
+# para que nadie empuje a main por descuido, no para detener a quien se empena.
+
+remoto="$1"
+while read -r ref_local sha_local ref_remoto sha_remoto; do
+    case "$ref_remoto" in
+        refs/heads/main)
+            echo ""
+            echo "  ✋ Push directo a main bloqueado."
+            echo ""
+            echo "  Aqui se trabaja por pull request. Crea tu rama y abre un PR:"
+            echo ""
+            echo "      git switch -c feat/lo-que-sea"
+            echo "      git push -u origin feat/lo-que-sea"
+            echo "      gh pr create"
+            echo ""
+            echo "  Ver CLAUDE.md, regla 3."
+            echo ""
+            exit 1
+            ;;
+    esac
+done
+exit 0

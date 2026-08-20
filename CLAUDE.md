@@ -25,7 +25,9 @@ Cada agente tiene su briefing. Leelo entero antes de escribir nada:
    que hay que cambiar algo de ese fichero, **para y preguntalo**: los otros tres
    agentes estan compilando contra el ahora mismo.
 3. **Nadie hace push a `main`.** Trabajas en tu rama, abres PR, lo revisa una
-   persona. La rama esta protegida en GitHub, asi que ni aunque lo intentes.
+   persona. Hay un hook en `.githooks/pre-push` que lo bloquea. **No lo saltes
+   con `--no-verify`**: el repo es privado y GitHub no puede imponerlo por su
+   cuenta, asi que aqui la regla depende de que la respetes.
 4. **Si algo no se puede probar sin el iPhone fisico, dilo en el PR** en vez de
    dar por bueno lo que no has visto funcionar. Solo hay un dispositivo y hay que
    turnarse.
