@@ -42,27 +42,18 @@ public enum DatosDeMentira {
     public static let mejorRacha = 28
     public static let vidasRestantes = 2
 
-    public static let niveles: [FichaDeNivel] = [
-        FichaDeNivel(numero: 1, nombre: "Te suena el despertador", desde: 0, hasta: 3),
-        FichaDeNivel(numero: 2, nombre: "Te levantas", desde: 3, hasta: 7),
-        FichaDeNivel(numero: 3, nombre: "Ya no cuesta tanto", desde: 7, hasta: 14),
-        FichaDeNivel(numero: 4, nombre: "Constante", desde: 14, hasta: 30),
-        FichaDeNivel(numero: 5, nombre: "Imparable", desde: 30, hasta: 60),
-        FichaDeNivel(numero: 6, nombre: "Leyenda", desde: 60, hasta: nil)
-    ]
-
-    public static func nivel(paraRacha racha: Int) -> FichaDeNivel {
-        niveles.last { racha >= $0.desde } ?? niveles[0]
-    }
-
-    public static let insignias: [FichaDeInsignia] = [
-        FichaDeInsignia(id: "primera", simbolo: "sunrise.fill", nombre: "Primer día", conseguida: true),
-        FichaDeInsignia(id: "semana", simbolo: "flame.fill", nombre: "7 seguidos", conseguida: true),
-        FichaDeInsignia(id: "sinvidas", simbolo: "heart.slash.fill", nombre: "Mes sin vidas", conseguida: true),
-        FichaDeInsignia(id: "relampago", simbolo: "bolt.fill", nombre: "Reto en 15 s", conseguida: true),
-        FichaDeInsignia(id: "mes", simbolo: "crown.fill", nombre: "30 seguidos", conseguida: false),
-        FichaDeInsignia(id: "invierno", simbolo: "snowflake", nombre: "Enero entero", conseguida: false)
-    ]
+    /// El estado de racha con el que se pintan las pantallas.
+    ///
+    /// Niveles e insignias ya no se inventan aqui: se preguntan a AlarmCore
+    /// con este estado. Asi la pantalla ensena exactamente lo que concede el
+    /// motor, y si manana cambia la escalera o una regla, el diseno la sigue
+    /// sin que nadie se acuerde de venir a tocar esta lista.
+    public static let estadoDeRacha = StreakState(
+        current: rachaActual,
+        best: mejorRacha,
+        livesRemaining: vidasRestantes,
+        diasCompletadosTotales: 96
+    )
 
     /// Agosto de 2026 hasta el dia 20, que es hoy en los datos de mentira.
     public static let mesDeEjemplo: [DayRecord] = {
