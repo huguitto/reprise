@@ -11,22 +11,25 @@ concurrency:
 jobs:
   dominio:
     name: Tests del dominio
-    runs-on: macos-15
+    # macos-26 es la que trae Xcode 26 y Swift 6.2. Las imagenes macos-15 se
+    # quedan en Swift 6.1 y no pueden ni leer nuestros Package.swift.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+      - run: swift --version
       - name: Tests de AlarmCore
         # Corren en el host, sin simulador: segundos en vez de minutos.
         run: cd Packages/AlarmCore && swift test
 
   compila:
     name: Compila para iOS
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-      - uses: tuist/tuist-action@v1
-        with:
-          command: generate
-          arguments: --no-open
+      - name: Instalar Tuist
+        run: brew install --cask tuist
+      - name: Generar el proyecto
+        run: tuist generate --no-open
       - name: Build
         run: |
           xcodebuild -workspace RepRise.xcworkspace -scheme RepRise \
