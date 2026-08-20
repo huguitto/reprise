@@ -102,11 +102,7 @@ public struct HoraDeMatriz: View {
     }
 }
 
-#Preview("Matriz de puntos · claro") {
-    MuestraDeMatriz()
-}
-
-#Preview("Matriz de puntos · oscuro") {
+#Preview("Matriz de puntos") {
     MuestraDeMatriz().preferredColorScheme(.dark)
 }
 

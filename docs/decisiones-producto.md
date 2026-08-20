@@ -75,7 +75,12 @@ y temas exclusivos, subir la dificultad del reto (nunca bajarla).
 - Direccion: `docs/design/referencias/01-reloj-fisico-direccion-principal.png`.
   Reloj fisico blanco, neumorfico, digitos de matriz de puntos, base monocroma y
   un solo color de acento.
-- Modo claro principal, modo oscuro obligatorio.
+- **Solo modo oscuro.** El modo claro se elimino el 20/08/2026: el despertador
+  se mira a las seis de la manana con la habitacion a oscuras, y un modo claro
+  solo servia para deslumbrar al que acaba de abrir los ojos. No hay ajuste de
+  tema en la app; la paleta es un solo juego de colores, no una pareja.
+  *Contrapartida asumida: la referencia 01 es un reloj fisico blanco, asi que la
+  app ya no imita su color, solo su material y sus digitos.*
 - Espanol unicamente.
 - Descartadas las referencias 03 y 04 (oscuro/neon) por genericas.
 

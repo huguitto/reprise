@@ -68,11 +68,7 @@ private struct PistaPunteada: View {
     }
 }
 
-#Preview("Anillo · claro") {
-    MuestraDeAnillo()
-}
-
-#Preview("Anillo · oscuro") {
+#Preview("Anillo") {
     MuestraDeAnillo().preferredColorScheme(.dark)
 }
 

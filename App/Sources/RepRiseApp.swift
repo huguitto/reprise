@@ -11,7 +11,7 @@ struct RepRiseApp: App {
     }
 }
 
-/// La raiz de la app: la navegacion de tres secciones.
+/// La raiz de la app: la navegacion de tres secciones, siempre en oscuro.
 ///
 /// Lo que se ve al abrir ya es la forma final —Alarmas, Racha y Ranking abajo,
 /// Ajustes y Pro en hoja— pero por dentro todo son **datos de mentira**. El
@@ -27,5 +27,9 @@ struct RootView: View {
     var body: some View {
         NavegacionPrincipal()
             .tint(DesignSystem.acento)
+            // RepRise es solo oscura. La paleta ya lo es de por si, pero sin
+            // esto el cromo del sistema —fondo de las hojas, barra de estado,
+            // teclado— seguiria al ajuste del movil y saldria en claro.
+            .preferredColorScheme(.dark)
     }
 }

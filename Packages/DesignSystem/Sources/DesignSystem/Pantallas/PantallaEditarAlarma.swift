@@ -180,17 +180,14 @@ private struct TarjetaDeReto: View {
     }
 }
 
-#Preview("Editar alarma · claro") {
-    PantallaEditarAlarma()
-}
-
-#Preview("Editar alarma · oscuro") {
+#Preview("Editar alarma") {
     PantallaEditarAlarma().preferredColorScheme(.dark)
 }
 
-#Preview("Nueva alarma · claro") {
+#Preview("Nueva alarma") {
     PantallaEditarAlarma(
         alarma: Alarm(hour: 7, minute: 0, challenge: .sentadillas),
         esNueva: true
     )
+    .preferredColorScheme(.dark)
 }

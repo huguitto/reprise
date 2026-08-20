@@ -8,32 +8,13 @@ import SwiftUI
 ///
 /// Todo lo que hay debajo es estatico y con datos inventados.
 public struct GaleriaDeDiseno: View {
-    @State private var tema: Tema = .sistema
-
     public init() {}
-
-    enum Tema: String, CaseIterable {
-        case sistema = "Sistema"
-        case claro = "Claro"
-        case oscuro = "Oscuro"
-
-        var esquema: ColorScheme? {
-            switch self {
-            case .sistema: nil
-            case .claro: .light
-            case .oscuro: .dark
-            }
-        }
-    }
 
     public var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Espacio.amplio) {
                     Cabecera("RepRise", subtitulo: "sistema de diseño")
-
-                    SelectorSegmentado(opciones: Tema.allCases, seleccion: $tema) { $0.rawValue }
-                        .padding(.horizontal, Espacio.margen)
 
                     grupo("Pantallas") {
                         enlace("Lista de alarmas", "alarm") { PantallaListaDeAlarmas() }
@@ -84,7 +65,6 @@ public struct GaleriaDeDiseno: View {
             .fondoDePantalla()
         }
         .tint(Paleta.acento)
-        .preferredColorScheme(tema.esquema)
     }
 
     private func grupo<Contenido: View>(
@@ -120,10 +100,6 @@ public struct GaleriaDeDiseno: View {
     }
 }
 
-#Preview("Galeria · claro") {
-    GaleriaDeDiseno()
-}
-
-#Preview("Galeria · oscuro") {
+#Preview("Galeria") {
     GaleriaDeDiseno().preferredColorScheme(.dark)
 }

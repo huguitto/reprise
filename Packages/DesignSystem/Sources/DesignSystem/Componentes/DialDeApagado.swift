@@ -93,11 +93,7 @@ private struct Mando: View {
     }
 }
 
-#Preview("Dial de apagado · claro") {
-    MuestraDeDial()
-}
-
-#Preview("Dial de apagado · oscuro") {
+#Preview("Dial de apagado") {
     MuestraDeDial().preferredColorScheme(.dark)
 }
 

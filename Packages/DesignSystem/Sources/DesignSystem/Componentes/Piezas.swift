@@ -204,11 +204,7 @@ private struct ColocarEnProgreso: ViewModifier {
     }
 }
 
-#Preview("Piezas · claro") {
-    MuestraDePiezas()
-}
-
-#Preview("Piezas · oscuro") {
+#Preview("Piezas") {
     MuestraDePiezas().preferredColorScheme(.dark)
 }
 

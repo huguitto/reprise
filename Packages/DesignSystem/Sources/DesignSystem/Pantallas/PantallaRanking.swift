@@ -159,14 +159,10 @@ private struct CarteldePro: View {
     }
 }
 
-#Preview("Ranking · claro") {
-    PantallaRanking()
-}
-
-#Preview("Ranking · oscuro") {
+#Preview("Ranking") {
     PantallaRanking().preferredColorScheme(.dark)
 }
 
-#Preview("Ranking con Pro · claro") {
-    PantallaRanking(esPro: true)
+#Preview("Ranking con Pro") {
+    PantallaRanking(esPro: true).preferredColorScheme(.dark)
 }

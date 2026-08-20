@@ -4,7 +4,6 @@ import AlarmCore
 /// Ajustes. Corto a proposito: cada opcion que se anade es una decision que el
 /// usuario tiene que tomar a cambio de nada.
 public struct PantallaAjustes: View {
-    @State private var tema: Tema = .sistema
     @State private var retoPorDefecto: ChallengeType = .pasos
     @State private var vibrar = true
     @State private var mostrarPro = false
@@ -14,12 +13,6 @@ public struct PantallaAjustes: View {
 
     public init(esPro: Bool = false) {
         self.esPro = esPro
-    }
-
-    enum Tema: String, CaseIterable {
-        case sistema = "Sistema"
-        case claro = "Claro"
-        case oscuro = "Oscuro"
     }
 
     public var body: some View {
@@ -66,14 +59,6 @@ public struct PantallaAjustes: View {
                         FilaDeAjuste(icono: "iphone.gen3.radiowaves.left.and.right",
                                      titulo: "Vibrar con la alarma") {
                             Interruptor(encendido: $vibrar)
-                        }
-                    }
-                }
-
-                seccion("Apariencia") {
-                    Bloque {
-                        FilaApilada(icono: "circle.lefthalf.filled", titulo: "Tema") {
-                            SelectorSegmentado(opciones: Tema.allCases, seleccion: $tema) { $0.rawValue }
                         }
                     }
                 }
@@ -152,10 +137,6 @@ public struct PantallaAjustes: View {
     }
 }
 
-#Preview("Ajustes · claro") {
-    PantallaAjustes()
-}
-
-#Preview("Ajustes · oscuro") {
+#Preview("Ajustes") {
     PantallaAjustes().preferredColorScheme(.dark)
 }

@@ -279,10 +279,6 @@ private struct CeldaDeDia: View {
     }
 }
 
-#Preview("Racha · claro") {
-    PantallaRacha()
-}
-
-#Preview("Racha · oscuro") {
+#Preview("Racha") {
     PantallaRacha().preferredColorScheme(.dark)
 }
