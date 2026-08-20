@@ -23,6 +23,8 @@ public struct GaleriaDeDiseno: View {
                     }
 
                     grupo("Pantallas") {
+                        enlace("Presentación", "hand.wave") { FlujoDeEntrada() }
+                        Raya()
                         enlace("Lista de alarmas", "alarm") { PantallaListaDeAlarmas() }
                         Raya()
                         enlace("Crear y editar alarma", "plus.circle") {
