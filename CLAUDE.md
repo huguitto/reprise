@@ -5,6 +5,17 @@ o 10 sentadillas. Rachas, vidas y ranking mundial y por paises.
 
 Todo el codigo, los comentarios y los textos de la app van **en espanol**.
 
+## Tu encargo
+
+Cada agente tiene su briefing. Leelo entero antes de escribir nada:
+
+| Agente | Paquetes | Briefing |
+|---|---|---|
+| A — Rachas | `AlarmCore`, `Persistence` | [docs/agentes/agente-a-rachas.md](docs/agentes/agente-a-rachas.md) |
+| B — Alarma | `AlarmScheduler` | [docs/agentes/agente-b-alarma.md](docs/agentes/agente-b-alarma.md) |
+| C — Sensores | `ChallengeKit` | [docs/agentes/agente-c-sensores.md](docs/agentes/agente-c-sensores.md) |
+| D — Diseno | `DesignSystem` | [docs/agentes/agente-d-diseno.md](docs/agentes/agente-d-diseno.md) |
+
 ## Reglas de trabajo (obligatorias para agentes)
 
 1. **Cada agente trabaja solo dentro de su paquete.** Si tu tarea es

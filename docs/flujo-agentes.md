@@ -18,12 +18,15 @@ Cada worktree necesita su propio `tuist generate` la primera vez.
 
 ## Reparto
 
-| Agente | Paquetes | Encargo |
-|---|---|---|
-| A — Rachas | `AlarmCore`, `Persistence` | Motor de rachas y vidas, con tests. Persistencia SwiftData y el rastro de reto empezado. |
-| B — Alarma | `AlarmScheduler` | AlarmKit detras del protocolo, alarmas con repeticion, catalogo de tonos, sostener el sonido durante el reto. |
-| C — Sensores | `ChallengeKit` | Contador de pasos y detector de sentadillas. **Primero la herramienta de calibracion**, despues el detector. |
-| D — Diseno | `DesignSystem` | Sistema de diseno completo y pantallas estaticas. |
+Cada agente tiene un briefing propio con su alcance, su definicion de terminado y
+las trampas que ya conocemos. La tabla es solo el indice.
+
+| Agente | Paquetes | Encargo | Briefing |
+|---|---|---|---|
+| A — Rachas | `AlarmCore`, `Persistence` | Motor de rachas y vidas, con tests. Persistencia y el rastro de reto empezado. | [agente-a-rachas.md](agentes/agente-a-rachas.md) |
+| B — Alarma | `AlarmScheduler` | AlarmKit tras el protocolo, repeticion, tonos, sostener el sonido durante el reto. | [agente-b-alarma.md](agentes/agente-b-alarma.md) |
+| C — Sensores | `ChallengeKit` | Pasos y sentadillas. **Primero la herramienta de calibracion.** | [agente-c-sensores.md](agentes/agente-c-sensores.md) |
+| D — Diseno | `DesignSystem` | Sistema de diseno completo y pantallas estaticas. | [agente-d-diseno.md](agentes/agente-d-diseno.md) |
 
 ## Los cuellos de botella, dichos por adelantado
 
