@@ -14,6 +14,9 @@ public struct PantallaListaDeAlarmas: View {
     @State private var modelo: ModeloDeAlarmas
     @State private var creandoAlarma = false
     @State private var alarmaEnEdicion: Alarm?
+    /// La fila que tiene la papelera fuera, si hay alguna. Vive aqui y no en
+    /// cada fila porque abrir una tiene que cerrar la que estuviera abierta.
+    @State private var filaConPapelera: AnyHashable?
     /// El muro de pago, cuando el plan corta desde la propia lista: encender
     /// una segunda alarma con el interruptor no pasa por la hoja de edicion.
     @State private var muroDePago: MotivoDelMuro?
@@ -50,7 +53,9 @@ public struct PantallaListaDeAlarmas: View {
     /// seria prometer cuatro despertares que no van a existir.
     private var alarmas: [Alarm] { modelo.efectivas }
 
-    private var proxima: Alarm? { alarmas.first(where: \.isEnabled) }
+    /// La que suena antes. **No** es la primera de la lista: la lista va por
+    /// fecha de creacion y esta va por hora. Lo decide el modelo.
+    private var proxima: Alarm? { modelo.proxima }
 
     public var body: some View {
         ScrollView {
@@ -116,15 +121,23 @@ public struct PantallaListaDeAlarmas: View {
                                 .padding(.vertical, Espacio.normal)
                         }
                         ForEach(alarmas) { alarma in
-                            FilaDeAlarma(alarma: alarma) {
-                                alarmaEnEdicion = alarma
-                            } alCambiarEncendido: { encendido in
-                                Task {
-                                    let resultado = await modelo.cambiarEncendido(
-                                        id: alarma.id, a: encendido
-                                    )
-                                    if case let .loImpideElPlan(motivo) = resultado {
-                                        muroDePago = MotivoDelMuro(motivo)
+                            DeslizarParaBorrar(
+                                id: alarma.id,
+                                abierta: $filaConPapelera,
+                                queSeBorra: descripcion(de: alarma)
+                            ) {
+                                Task { await modelo.eliminar(id: alarma.id) }
+                            } contenido: {
+                                FilaDeAlarma(alarma: alarma) {
+                                    alarmaEnEdicion = alarma
+                                } alCambiarEncendido: { encendido in
+                                    Task {
+                                        let resultado = await modelo.cambiarEncendido(
+                                            id: alarma.id, a: encendido
+                                        )
+                                        if case let .loImpideElPlan(motivo) = resultado {
+                                            muroDePago = MotivoDelMuro(motivo)
+                                        }
                                     }
                                 }
                             }
@@ -189,6 +202,13 @@ public struct PantallaListaDeAlarmas: View {
         }
     }
 
+    /// Como se nombra una alarma cuando hay que decir cual se borra. Es lo que
+    /// oye quien usa VoiceOver antes de confirmar el gesto.
+    private func descripcion(de alarma: Alarm) -> String {
+        let hora = String(format: "%d:%02d", alarma.hour, alarma.minute)
+        return alarma.label.isEmpty ? "la alarma de las \(hora)" : "\(alarma.label), \(hora)"
+    }
+
     /// La version guardada de una alarma que se ve recortada por el plan.
     private func guardada(_ alarma: Alarm) -> Alarm {
         modelo.alarmas.first { $0.id == alarma.id } ?? alarma
@@ -246,7 +266,8 @@ private struct FilaDeAlarma: View {
         }
         .padding(.horizontal, Espacio.normal)
         .padding(.vertical, Espacio.normal)
-        .relieve(.bajo, radio: Radio.medio)
+        // Sin relieve propio: lo pone `DeslizarParaBorrar`, que es quien recorta
+        // la fila al arrastrarla. Aqui dentro, la sombra se cortaria con ella.
     }
 
     /// Junta lo que abre la edicion en un solo objetivo tocable.

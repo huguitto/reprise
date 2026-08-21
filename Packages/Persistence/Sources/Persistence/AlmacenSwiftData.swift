@@ -40,15 +40,15 @@ public actor AlmacenSwiftData {
     /// darla por buena solo leyendo el codigo.
     func ensayoDeTransaccionQueFalla(_ alarma: Alarm, error: any Error) throws {
         try enTransaccion {
-            modelContext.insert(EsquemaV1.AlarmaGuardada(alarma))
+            modelContext.insert(EsquemaV2.AlarmaGuardada(alarma))
             throw error
         }
     }
 
     // MARK: - Filas
 
-    private func filaDeAlarma(id: UUID) throws -> EsquemaV1.AlarmaGuardada? {
-        var descriptor = FetchDescriptor<EsquemaV1.AlarmaGuardada>(predicate: #Predicate { $0.id == id })
+    private func filaDeAlarma(id: UUID) throws -> EsquemaV2.AlarmaGuardada? {
+        var descriptor = FetchDescriptor<EsquemaV2.AlarmaGuardada>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         return try modelContext.fetch(descriptor).first
     }
@@ -104,11 +104,19 @@ public actor AlmacenSwiftData {
 
 extension AlmacenSwiftData: AlarmRepository {
 
+    /// De la mas nueva a la mas vieja. La lista de la app ensena este mismo
+    /// orden, asi que lo ultimo que has puesto sale arriba y no hay que buscarlo
+    /// entre las demas.
+    ///
+    /// El `id` solo desempata dos alarmas creadas en el mismo instante, que en
+    /// disco solo puede pasar por la migracion desde la V1 y en los tests.
     public func all() throws -> [Alarm] {
-        let descriptor = FetchDescriptor<EsquemaV1.AlarmaGuardada>(
-            sortBy: [SortDescriptor(\.hora), SortDescriptor(\.minuto)]
+        let descriptor = FetchDescriptor<EsquemaV2.AlarmaGuardada>(
+            sortBy: [SortDescriptor(\.creadaEn, order: .reverse)]
         )
-        return try modelContext.fetch(descriptor).map(\.aDominio)
+        return try modelContext.fetch(descriptor)
+            .map(\.aDominio)
+            .sorted(by: Alarm.masNuevaPrimero)
     }
 
     public func save(_ alarm: Alarm) throws {
@@ -116,7 +124,7 @@ extension AlmacenSwiftData: AlarmRepository {
             if let fila = try filaDeAlarma(id: alarm.id) {
                 fila.actualizar(desde: alarm)
             } else {
-                modelContext.insert(EsquemaV1.AlarmaGuardada(alarm))
+                modelContext.insert(EsquemaV2.AlarmaGuardada(alarm))
             }
         }
     }

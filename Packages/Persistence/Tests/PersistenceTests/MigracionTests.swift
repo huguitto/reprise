@@ -7,9 +7,9 @@ import AlarmCore
 @Suite("Migraciones")
 struct MigracionTests {
 
-    @Test("El esquema en disco es la version 1")
+    @Test("El esquema en disco es la version 2")
     func versionDeclarada() {
-        #expect(Persistence.version == Schema.Version(1, 0, 0))
+        #expect(Persistence.version == Schema.Version(2, 0, 0))
     }
 
     @Test("El plan conoce todas las versiones que puede haber instaladas")
@@ -21,9 +21,73 @@ struct MigracionTests {
                 "cada salto entre dos versiones necesita su etapa: si no cuadra, hay un salto sin migracion")
     }
 
-    @Test("El esquema declara los cuatro modelos")
+    @Test("Todos los esquemas declaran los cuatro modelos")
     func modelosDeclarados() {
-        #expect(EsquemaV1.models.count == 4, "un modelo fuera del esquema es una tabla que no se migra")
+        for esquema in PlanDeMigracion.schemas {
+            #expect(esquema.models.count == 4, "un modelo fuera del esquema es una tabla que no se migra")
+        }
+    }
+
+    // MARK: - V1 -> V2: la fecha de creacion de las alarmas
+
+    @Test("Al actualizar desde la V1, la lista se queda en el orden que ya tenia")
+    func alActualizarNoSeRecolocaLaLista() async throws {
+        let fichero = AlmacenTemporal()
+
+        // Lo que hay instalado hoy: tres alarmas sin fecha de creacion, que el
+        // usuario esta viendo ordenadas por hora.
+        let temprana = UUID(), media = UUID(), tardia = UUID()
+        let viejo = try Persistence.contenedor(deEsquema: EsquemaV1.self, url: fichero.url)
+        let contexto = ModelContext(viejo)
+        for (id, hora) in [(tardia, 9), (temprana, 6), (media, 7)] {
+            contexto.insert(EsquemaV1.AlarmaGuardada(
+                id: id, hora: hora, minuto: 0, diasSemana: [], reto: "pasos",
+                tonoID: "sistema", etiqueta: "", activa: true
+            ))
+        }
+        try contexto.save()
+
+        // Y ahora se actualiza la app.
+        let almacen = try fichero.abrir()
+        let despues = try await almacen.all()
+
+        #expect(despues.map(\.id) == [temprana, media, tardia],
+                "al actualizar, las alarmas de siempre tienen que salir donde estaban")
+        #expect(Set(despues.map(\.creadaEn)).count == 3,
+                "sin fechas distintas el orden lo decidiria el disco, y cambiaria solo")
+    }
+
+    @Test("Una alarma nueva sale por delante de las que venian de la V1")
+    func laNuevaSaleLaPrimera() async throws {
+        let fichero = AlmacenTemporal()
+        let viejo = try Persistence.contenedor(deEsquema: EsquemaV1.self, url: fichero.url)
+        let contexto = ModelContext(viejo)
+        contexto.insert(EsquemaV1.AlarmaGuardada(
+            id: UUID(), hora: 6, minuto: 0, diasSemana: [], reto: "pasos",
+            tonoID: "sistema", etiqueta: "", activa: true
+        ))
+        try contexto.save()
+
+        let almacen = try fichero.abrir()
+        let nueva = alarmaDePrueba(hora: 23, minuto: 0)
+        try await almacen.save(nueva)
+
+        #expect(try await almacen.all().first?.id == nueva.id)
+    }
+
+    @Test("El sellado no toca una alarma que ya trae fecha")
+    func elSelladoNoPisaLoQueYaTieneFecha() throws {
+        let contexto = try contextoDePrueba()
+        let suya = Date(timeIntervalSince1970: 1_000_000)
+        contexto.insert(EsquemaV2.AlarmaGuardada(
+            id: UUID(), hora: 6, minuto: 0, diasSemana: [], reto: "pasos",
+            tonoID: "sistema", etiqueta: "", activa: true, creadaEn: suya
+        ))
+
+        let sellados = try PlanDeMigracion.sellarAlarmasExistentes(contexto)
+
+        #expect(sellados == 0)
+        #expect(try contexto.fetch(FetchDescriptor<EsquemaV2.AlarmaGuardada>()).first?.creadaEn == suya)
     }
 
     // MARK: - La trampa de las vidas

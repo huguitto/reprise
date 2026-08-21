@@ -55,16 +55,39 @@ struct AlmacenTests {
         #expect(try await almacen.all().isEmpty)
     }
 
-    @Test("Las alarmas salen ordenadas por hora")
+    @Test("Las alarmas salen de la mas nueva a la mas vieja, no por hora")
     func alarmasOrdenadas() async throws {
         let almacen = try Persistence.almacen(enMemoria: true)
-        try await almacen.save(alarmaDePrueba(hora: 9, minuto: 0))
-        try await almacen.save(alarmaDePrueba(hora: 6, minuto: 30))
-        try await almacen.save(alarmaDePrueba(hora: 6, minuto: 5))
+        let ayer = Date(timeIntervalSince1970: 1_000_000)
+        // Las horas van al reves que las fechas justo para que un orden por hora
+        // no pueda colarse por casualidad.
+        try await almacen.save(alarmaDePrueba(hora: 6, minuto: 5, creadaEn: ayer))
+        try await almacen.save(alarmaDePrueba(hora: 6, minuto: 30, creadaEn: ayer.addingTimeInterval(60)))
+        try await almacen.save(alarmaDePrueba(hora: 9, minuto: 0, creadaEn: ayer.addingTimeInterval(120)))
 
         let horas = try await almacen.all().map { ($0.hour, $0.minute) }
-        #expect(horas.map(\.0) == [6, 6, 9])
-        #expect(horas.map(\.1) == [5, 30, 0])
+        #expect(horas.map(\.0) == [9, 6, 6])
+        #expect(horas.map(\.1) == [0, 30, 5])
+    }
+
+    @Test("Editar una alarma no la mueve de sitio")
+    func editarNoLaSube() async throws {
+        let almacen = try Persistence.almacen(enMemoria: true)
+        let vieja = alarmaDePrueba(hora: 6, minuto: 0, creadaEn: Date(timeIntervalSince1970: 1_000_000))
+        try await almacen.save(vieja)
+        try await almacen.save(alarmaDePrueba(hora: 7, minuto: 0, creadaEn: Date(timeIntervalSince1970: 2_000_000)))
+
+        // Se reescribe la vieja con una fecha de creacion nueva, que es lo que
+        // llegaria de una pantalla que la reconstruyera desde cero.
+        var editada = vieja
+        editada.hour = 8
+        editada.creadaEn = Date()
+        try await almacen.save(editada)
+
+        let guardadas = try await almacen.all()
+        #expect(guardadas.count == 2)
+        #expect(guardadas.last?.id == vieja.id, "editarla la ha mandado arriba: la lista bailaria al guardar")
+        #expect(guardadas.last?.hour == 8, "el cambio de hora si tiene que haberse guardado")
     }
 
     @Test("Una alarma sin dias es de un solo uso y se guarda como tal")

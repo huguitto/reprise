@@ -40,8 +40,9 @@ func alarmaDePrueba(
     minuto: Int = 30,
     dias: Set<Weekday> = [.lunes, .miercoles],
     reto: ChallengeType = .pasos,
-    activa: Bool = true
+    activa: Bool = true,
+    creadaEn: Date = Date()
 ) -> Alarm {
     Alarm(id: id, hour: hora, minute: minuto, weekdays: dias, challenge: reto,
-          toneID: "sistema", label: "Trabajo", isEnabled: activa)
+          toneID: "sistema", label: "Trabajo", isEnabled: activa, creadaEn: creadaEn)
 }

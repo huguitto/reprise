@@ -74,15 +74,59 @@ struct GuardarTests {
         #expect(modelo.alarmas.first?.label == "Correr")
     }
 
-    @Test("La lista sale ordenada por hora, como el almacen")
-    func ordenPorHora() async throws {
+    @Test("La ultima alarma creada sale la primera de la lista")
+    func laUltimaCreadaSaleArriba() async throws {
         let (modelo, _) = modeloDePrueba()
-        await modelo.guardar(Alarm(hour: 9, minute: 0, challenge: .pasos))
-        await modelo.guardar(Alarm(hour: 6, minute: 30, challenge: .pasos))
         await modelo.guardar(Alarm(hour: 6, minute: 5, challenge: .pasos))
+        await modelo.guardar(Alarm(hour: 6, minute: 30, challenge: .pasos))
+        await modelo.guardar(Alarm(hour: 9, minute: 0, challenge: .pasos))
 
-        #expect(modelo.alarmas.map(\.hour) == [6, 6, 9])
-        #expect(modelo.alarmas.map(\.minute) == [5, 30, 0])
+        // Las horas van al reves que el orden de creacion a proposito: si la
+        // lista volviera a ordenarse por hora, esto lo cantaria.
+        #expect(modelo.alarmas.map(\.hour) == [9, 6, 6])
+        #expect(modelo.alarmas.map(\.minute) == [0, 30, 5])
+    }
+
+    @Test("Editar una alarma vieja no la sube a lo alto de la lista")
+    func editarNoLaSube() async throws {
+        let (modelo, _) = modeloDePrueba()
+        let vieja = Alarm(hour: 6, minute: 0, challenge: .pasos,
+                          creadaEn: Date(timeIntervalSince1970: 1_000_000))
+        await modelo.guardar(vieja)
+        await modelo.guardar(Alarm(hour: 7, minute: 0, challenge: .pasos,
+                                   creadaEn: Date(timeIntervalSince1970: 2_000_000)))
+
+        var editada = vieja
+        editada.minute = 45
+        editada.creadaEn = Date()
+        await modelo.guardar(editada)
+
+        #expect(modelo.alarmas.count == 2)
+        #expect(modelo.alarmas.last?.id == vieja.id,
+                "la fila se iria de debajo del dedo justo al guardar")
+        #expect(modelo.alarmas.last?.minute == 45)
+    }
+
+    @Test("La proxima es la mas temprana, no la primera de la lista")
+    func laProximaEsPorHora() async throws {
+        let (modelo, _) = modeloDePrueba()
+        await modelo.guardar(Alarm(hour: 6, minute: 30, challenge: .pasos, label: "Madrugon"))
+        // Puesta despues, asi que va la primera de la lista. Pero suena mas
+        // tarde: la esfera de la portada tiene que seguir dando las 6:30.
+        await modelo.guardar(Alarm(hour: 23, minute: 0, challenge: .pasos, label: "Noche"))
+
+        #expect(modelo.alarmas.first?.label == "Noche")
+        #expect(modelo.proxima?.label == "Madrugon")
+    }
+
+    @Test("La proxima ignora las apagadas")
+    func laProximaIgnoraLasApagadas() async throws {
+        let (modelo, _) = modeloDePrueba()
+        await modelo.guardar(Alarm(hour: 5, minute: 0, challenge: .pasos,
+                                   label: "Apagada", isEnabled: false))
+        await modelo.guardar(Alarm(hour: 8, minute: 0, challenge: .pasos, label: "Puesta"))
+
+        #expect(modelo.proxima?.label == "Puesta")
     }
 
     @Test("Si el almacen falla, la alarma no se pinta como guardada")
@@ -260,16 +304,17 @@ struct PlanTests {
         // compara contra disco no pasa absolutamente nada: el interruptor vuelve
         // solo a su sitio y el usuario no sabe por que.
         let (modelo, plan) = modeloDePrueba()
-        let primera = Alarm(hour: 6, minute: 0, challenge: .pasos)
-        let segunda = Alarm(hour: 7, minute: 0, challenge: .pasos)
-        await modelo.guardar(primera)
-        await modelo.guardar(segunda)
+        // La que sobrevive al plan gratis es la de arriba de la lista, o sea la
+        // ultima creada. La tapada es esta, la vieja.
+        let vieja = Alarm(hour: 6, minute: 0, challenge: .pasos)
+        await modelo.guardar(vieja)
+        await modelo.guardar(Alarm(hour: 7, minute: 0, challenge: .pasos))
         plan.volverAGratis()
 
-        #expect(modelo.efectivas.first { $0.id == segunda.id }?.isEnabled == false)
-        #expect(modelo.alarmas.first { $0.id == segunda.id }?.isEnabled == true)
+        #expect(modelo.efectivas.first { $0.id == vieja.id }?.isEnabled == false)
+        #expect(modelo.alarmas.first { $0.id == vieja.id }?.isEnabled == true)
 
-        let resultado = await modelo.cambiarEncendido(id: segunda.id, a: true)
+        let resultado = await modelo.cambiarEncendido(id: vieja.id, a: true)
 
         #expect(resultado == .loImpideElPlan(.limiteDeAlarmasActivas(maximo: 1)))
     }
@@ -278,10 +323,10 @@ struct PlanTests {
     func caerAGratisNoBorra() async throws {
         let programador = PreviewAlarmScheduler()
         let (modelo, plan) = modeloDePrueba(programador: programador)
-        let primera = Alarm(hour: 6, minute: 0, weekdays: [.lunes, .martes], challenge: .pasos)
-        let segunda = Alarm(hour: 7, minute: 0, weekdays: [.sabado], challenge: .pasos)
-        await modelo.guardar(primera)
-        await modelo.guardar(segunda)
+        let vieja = Alarm(hour: 6, minute: 0, weekdays: [.lunes, .martes], challenge: .pasos)
+        let ultima = Alarm(hour: 7, minute: 0, weekdays: [.sabado], challenge: .pasos)
+        await modelo.guardar(vieja)
+        await modelo.guardar(ultima)
         #expect(try await programador.scheduledAlarmIDs().count == 2)
 
         plan.volverAGratis()
@@ -289,11 +334,11 @@ struct PlanTests {
 
         // En disco siguen las dos, con sus dias intactos.
         #expect(modelo.alarmas.count == 2)
-        #expect(modelo.alarmas.first?.weekdays == [.lunes, .martes])
-        // Lo que suena es solo la primera, y de un solo uso.
+        #expect(modelo.alarmas.last?.weekdays == [.lunes, .martes])
+        // Lo que suena es solo la de arriba —la ultima puesta—, y de un solo uso.
         #expect(modelo.efectivas.filter(\.isEnabled).count == 1)
         #expect(modelo.efectivas.first?.weekdays.isEmpty == true)
-        #expect(try await programador.scheduledAlarmIDs() == [primera.id])
+        #expect(try await programador.scheduledAlarmIDs() == [ultima.id])
         #expect(modelo.elPlanRecortaAlgo)
     }
 }

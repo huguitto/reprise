@@ -66,6 +66,19 @@ public final class ModeloDeAlarmas {
         PoliticaDelPlan.alarmasEfectivas(alarmas, plan: plan.plan)
     }
 
+    /// La que va a sonar antes de todas: la mas temprana del dia entre las
+    /// encendidas.
+    ///
+    /// Se calcula aparte y **no** es la primera de la lista. La lista va por
+    /// fecha de creacion, y darla por buena como "la proxima" haria que poner
+    /// una alarma a las once de la noche cambiara la hora que anuncia la
+    /// cabecera de la manana siguiente.
+    public var proxima: Alarm? {
+        efectivas.filter(\.isEnabled).min {
+            ($0.hour, $0.minute, $0.id.uuidString) < ($1.hour, $1.minute, $1.id.uuidString)
+        }
+    }
+
     /// Si el plan esta recortando algo de lo guardado. La lista lo dice en vez
     /// de ensenar una alarma apagada sin explicacion.
     public var elPlanRecortaAlgo: Bool { efectivas != alarmas }
@@ -130,7 +143,12 @@ public final class ModeloDeAlarmas {
         }
 
         if let indice = alarmas.firstIndex(where: { $0.id == alarma.id }) {
-            alarmas[indice] = alarma
+            // La fecha de creacion se conserva, igual que hace el disco: editar
+            // una alarma no la vuelve a crear, y si la mandara arriba del todo
+            // la fila se iria de debajo del dedo justo al guardar.
+            var guardada = alarma
+            guardada.creadaEn = alarmas[indice].creadaEn
+            alarmas[indice] = guardada
         } else {
             alarmas.append(alarma)
         }
@@ -219,13 +237,10 @@ public final class ModeloDeAlarmas {
 
     // MARK: - Orden
 
-    /// El mismo orden que devuelve el almacen —por hora y minuto—, para que la
-    /// lista no se recoloque sola al reabrir la app. El `id` solo desempata,
-    /// que si no dos alarmas a la misma hora bailan entre arranques.
+    /// El mismo orden que devuelve el almacen —la ultima creada, la primera—,
+    /// para que la lista no se recoloque sola al reabrir la app.
     private static func ordenadas(_ alarmas: [Alarm]) -> [Alarm] {
-        alarmas.sorted {
-            ($0.hour, $0.minute, $0.id.uuidString) < ($1.hour, $1.minute, $1.id.uuidString)
-        }
+        alarmas.sorted(by: Alarm.masNuevaPrimero)
     }
 }
 

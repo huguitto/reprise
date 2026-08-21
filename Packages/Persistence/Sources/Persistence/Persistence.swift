@@ -25,7 +25,7 @@ public enum Persistence {
 
     /// Version del esquema en disco. Se lee del esquema, no de una constante
     /// aparte, para que no puedan desincronizarse.
-    public static var version: Schema.Version { EsquemaV1.versionIdentifier }
+    public static var version: Schema.Version { EsquemaV2.versionIdentifier }
 
     /// El contenedor, con el plan de migracion enchufado desde el primer dia.
     ///
@@ -36,7 +36,7 @@ public enum Persistence {
     ///     justo eso, que lo guardado sigue ahi al volver a abrir. Si se pasa,
     ///     manda sobre `enMemoria`.
     public static func contenedor(enMemoria: Bool = false, url: URL? = nil) throws -> ModelContainer {
-        let esquema = Schema(versionedSchema: EsquemaV1.self)
+        let esquema = Schema(versionedSchema: EsquemaV2.self)
         let configuracion = if let url {
             ModelConfiguration(schema: esquema, url: url)
         } else {
@@ -45,6 +45,20 @@ public enum Persistence {
         cerrojoDelContenedor.lock()
         defer { cerrojoDelContenedor.unlock() }
         return try ModelContainer(for: esquema, migrationPlan: PlanDeMigracion.self, configurations: configuracion)
+    }
+
+    /// Un contenedor pegado a una version **vieja** del esquema, sin plan de
+    /// migracion. Solo para pruebas: es la unica forma de fabricar un fichero
+    /// como el que tiene instalado quien todavia no ha actualizado, y sin eso
+    /// una migracion no se puede probar, solo leer.
+    ///
+    /// Pasa por el mismo cerrojo que `contenedor(enMemoria:url:)` y por la misma
+    /// razon: dos `ModelContainer` construyendose a la vez revientan.
+    static func contenedor(deEsquema version: any VersionedSchema.Type, url: URL) throws -> ModelContainer {
+        let esquema = Schema(versionedSchema: version)
+        cerrojoDelContenedor.lock()
+        defer { cerrojoDelContenedor.unlock() }
+        return try ModelContainer(for: esquema, configurations: ModelConfiguration(schema: esquema, url: url))
     }
 
     public static func almacen(enMemoria: Bool = false, url: URL? = nil) throws -> AlmacenSwiftData {
