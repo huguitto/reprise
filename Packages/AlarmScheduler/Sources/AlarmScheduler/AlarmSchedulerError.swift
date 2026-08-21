@@ -4,6 +4,15 @@ import Foundation
 ///
 /// Todos llevan `mensaje` en espanol porque acaban en pantalla: una alarma que
 /// no se programa y no lo dice es peor que una alarma que no existe.
+///
+/// AlarmKit reparte sus fallos en tres sitios —pedir el permiso, consultar lo
+/// que hay puesto y programar— y solo tiene **un** error propio con nombre
+/// (`maximumLimitReached`). Todo lo demas llega como un `NSError` opaco del
+/// estilo `Error Domain=com.apple.AlarmKit code=0 "(null)"`. Por eso hay un
+/// caso por operacion en vez de uno solo: con uno solo, tropezar al *consultar*
+/// se le contaba al usuario como "no se ha podido programar la alarma", que es
+/// mentira y ademas la peor mentira posible —le dice que no va a sonar algo que
+/// si esta puesto.
 public enum AlarmSchedulerError: Error, Sendable, Hashable {
     /// El usuario dijo que no. Desde iOS no se puede volver a preguntar: solo
     /// queda mandarle a Ajustes.
@@ -16,7 +25,13 @@ public enum AlarmSchedulerError: Error, Sendable, Hashable {
     /// AlarmKit no admite mas alarmas simultaneas.
     case limiteDeAlarmasAlcanzado
     case horaInvalida(hour: Int, minute: Int)
+    /// Fallo al programar. Este si deja al usuario sin despertador.
     case fallaDeAlarmKit(descripcion: String)
+    /// Fallo al preguntarle al sistema que alarmas tiene puestas. No impide
+    /// programar: solo impide saber que hay que limpiar.
+    case noSePudoConsultarElSistema(descripcion: String)
+    /// Fallo al pedir el permiso, que no es lo mismo que denegarlo.
+    case falloAlPedirPermiso(descripcion: String)
 
     public var mensaje: String {
         switch self {
@@ -32,6 +47,10 @@ public enum AlarmSchedulerError: Error, Sendable, Hashable {
             "La hora \(hour):\(minute) no existe."
         case let .fallaDeAlarmKit(descripcion):
             "El sistema no ha podido programar la alarma: \(descripcion)"
+        case let .noSePudoConsultarElSistema(descripcion):
+            "El sistema no ha dicho qué alarmas tiene puestas: \(descripcion)"
+        case let .falloAlPedirPermiso(descripcion):
+            "No se ha podido pedir el permiso de alarmas: \(descripcion)"
         }
     }
 }

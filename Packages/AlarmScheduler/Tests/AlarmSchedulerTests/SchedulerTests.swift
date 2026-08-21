@@ -76,10 +76,21 @@ struct AlarmAuthorizationCopyTests {
         let errores: [AlarmSchedulerError] = [
             .sinAutorizacion, .autorizacionPendiente, .alarmKitNoDisponible,
             .limiteDeAlarmasAlcanzado, .horaInvalida(hour: 25, minute: 0),
-            .fallaDeAlarmKit(descripcion: "vaya")
+            .fallaDeAlarmKit(descripcion: "vaya"),
+            .noSePudoConsultarElSistema(descripcion: "vaya"),
+            .falloAlPedirPermiso(descripcion: "vaya")
         ]
         for error in errores {
             #expect(!error.mensaje.isEmpty)
         }
+
+        // Y cada uno cuenta **lo suyo**: los tres de AlarmKit llegan con la
+        // misma descripcion opaca (`code=0 "(null)"`) y antes compartian un
+        // unico caso, asi que tropezar al consultar se le contaba al usuario
+        // como que no se habia podido programar la alarma.
+        let programar = AlarmSchedulerError.fallaDeAlarmKit(descripcion: "x").mensaje
+        let consultar = AlarmSchedulerError.noSePudoConsultarElSistema(descripcion: "x").mensaje
+        let permiso = AlarmSchedulerError.falloAlPedirPermiso(descripcion: "x").mensaje
+        #expect(Set([programar, consultar, permiso]).count == 3)
     }
 }

@@ -68,7 +68,7 @@ public actor SystemAlarmScheduler: AlarmScheduling {
         do {
             return try await AlarmManager.shared.requestAuthorization().dominio
         } catch {
-            throw AlarmSchedulerError.fallaDeAlarmKit(descripcion: "\(error)")
+            throw AlarmSchedulerError.falloAlPedirPermiso(descripcion: "\(error)")
         }
         #else
         throw AlarmSchedulerError.alarmKitNoDisponible
@@ -138,7 +138,7 @@ public actor SystemAlarmScheduler: AlarmScheduling {
             tones.prune(keeping: ids)
             return ids
         } catch {
-            throw AlarmSchedulerError.fallaDeAlarmKit(descripcion: "\(error)")
+            throw AlarmSchedulerError.noSePudoConsultarElSistema(descripcion: "\(error)")
         }
         #else
         throw AlarmSchedulerError.alarmKitNoDisponible
