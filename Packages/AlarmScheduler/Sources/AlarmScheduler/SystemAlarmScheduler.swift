@@ -14,10 +14,13 @@ import SwiftUI
 /// Contexto que hace falta para leer esto:
 ///
 /// - AlarmKit es la UNICA forma en iOS de que la alarma suene con la app cerrada
-///   rompiendo el silencio y los modos de concentracion. Requiere iOS 26 y un
-///   entitlement que Apple aprueba caso por caso. **Todavia no lo tenemos**, asi
-///   que nada de este fichero se ha visto funcionar: la app usa
-///   `PreviewAlarmScheduler` hasta que llegue.
+///   rompiendo el silencio y los modos de concentracion. Requiere iOS 26 y la
+///   clave `NSAlarmKitUsageDescription` en el Info.plist. **Nada mas.** Aqui
+///   ponia que hacia falta ademas un entitlement que Apple aprueba caso por
+///   caso, y por eso la app entera se monto sobre `PreviewAlarmScheduler`. Era
+///   falso: nadie lo habia intentado. El 21/08/2026 se probo contra el iPhone
+///   —cuenta de desarrollador gratuita, tres entitlements firmados y ninguno de
+///   AlarmKit— y la alarma sono.
 /// - La interfaz de sistema de AlarmKit SIEMPRE muestra un boton "Stop" que no
 ///   podemos ocultar. El diseno de producto ya lo asume: el boton secundario
 ///   abre la app para hacer el reto, y quien pulse "Stop" sin completarlo pierde

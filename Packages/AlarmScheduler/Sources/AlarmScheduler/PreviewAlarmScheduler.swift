@@ -2,7 +2,10 @@ import Foundation
 import AlarmCore
 
 /// Programador en memoria para simulador, previews y tests.
-/// Permite construir toda la app sin depender del entitlement de AlarmKit.
+///
+/// No es un sustituto a la espera de nada —la app monta `SystemAlarmScheduler`
+/// y suena—: es la otra mitad del protocolo, para donde AlarmKit no tiene con
+/// que sonar. En el simulador no hay alarma que dar.
 public actor PreviewAlarmScheduler: AlarmScheduling {
     private var scheduled: Set<DomainAlarm.ID> = []
     private var state: AlarmAuthorizationState
