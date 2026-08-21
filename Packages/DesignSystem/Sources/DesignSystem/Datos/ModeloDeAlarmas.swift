@@ -70,16 +70,26 @@ public final class ModeloDeAlarmas {
         PoliticaDelPlan.alarmasEfectivas(alarmas, plan: plan.plan)
     }
 
-    /// La que va a sonar antes de todas: la mas temprana del dia entre las
-    /// encendidas.
+    /// La que va a sonar antes de todas las encendidas.
     ///
     /// Se calcula aparte y **no** es la primera de la lista. La lista va por
     /// fecha de creacion, y darla por buena como "la proxima" haria que poner
     /// una alarma a las once de la noche cambiara la hora que anuncia la
     /// cabecera de la manana siguiente.
-    public var proxima: Alarm? {
-        efectivas.filter(\.isEnabled).min {
-            ($0.hour, $0.minute, $0.id.uuidString) < ($1.hour, $1.minute, $1.id.uuidString)
+    public var proxima: Alarm? { proxima(desde: Date()) }
+
+    /// Variante con reloj inyectable para hacer explicita la cuenta y poder
+    /// probar el limite entre hoy y manana sin depender de la hora del test.
+    public func proxima(desde ahora: Date, calendario: Calendar = .current) -> Alarm? {
+        efectivas.filter(\.isEnabled).min { izquierda, derecha in
+            guard let fechaIzquierda = izquierda.proximaVez(desde: ahora, calendario: calendario) else {
+                return false
+            }
+            guard let fechaDerecha = derecha.proximaVez(desde: ahora, calendario: calendario) else {
+                return true
+            }
+            if fechaIzquierda != fechaDerecha { return fechaIzquierda < fechaDerecha }
+            return izquierda.id.uuidString < derecha.id.uuidString
         }
     }
 
