@@ -74,6 +74,19 @@ public enum Paleta {
     /// Fondo de las pastillas de acento. Nunca lleva texto de acento encima.
     public static let acentoTenue = Tinte(0x12283F).color
 
+    // MARK: - Peligro
+
+    /// El rojo de borrar, y **solo** el de borrar.
+    ///
+    /// Es la unica excepcion a la regla del color unico, y no es un capricho: lo
+    /// que aparece al deslizar una fila hacia la izquierda destruye algo sin
+    /// preguntar, y ahi el color es lo que avisa antes de que llegue el dedo.
+    /// Usarlo para cualquier otra cosa lo gasta y deja de avisar.
+    ///
+    /// Es el rojo de sistema de Apple en su version oscura, por lo mismo que el
+    /// acento: el claro esta calibrado para ir sobre blanco.
+    public static let peligro = Tinte(0xFF453A).color
+
     // MARK: - Pantalla del reto
 
     // El reto se mira a las seis de la manana y con los ojos a medio abrir. Ahi
