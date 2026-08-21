@@ -2,35 +2,81 @@ import Foundation
 import AlarmCore
 
 // Ver la nota de `ChallengeDetectorFactory`: en macOS CoreMotion se importa pero
-// `CMPedometer` no esta disponible, asi que la guarda es el sistema.
+// ni `CMMotionManager` ni `CMPedometer` estan disponibles, asi que la guarda es
+// el sistema.
 #if os(iOS)
 import CoreMotion
 
-/// Cuenta los 20 pasos con `CMPedometer`.
+/// Cuenta los 20 pasos leyendo el acelerometro a 50 Hz.
 ///
-/// El podometro vive en el coprocesador de movimiento y funciona con la pantalla
-/// apagada y la app en segundo plano, que es justo lo que hace falta cuando
-/// alguien echa a andar hacia el bano con el movil en la mano. HealthKit daria
-/// el mismo dato pero con minutos de retraso: inservible para apagar una alarma.
+/// ## Por que no manda el podometro
+///
+/// Hasta el 21 de agosto de 2026 esto era `CMPedometer` y nada mas, y contaba
+/// alrededor de un tercio de lo que andaba la persona: veinte en pantalla
+/// despues de sesenta de verdad (issue #35). No era un fallo de nuestra
+/// aritmetica —el dato del podometro es acumulado y se sumaba entero— sino de la
+/// herramienta: su propia cabecera entrega los datos *"on a best effort basis"*,
+/// confirma que estas caminando antes de contar nada, descarta las rachas cortas
+/// e irregulares y entrega a tandas de varios segundos. Dar veinte pasos por una
+/// habitacion, con giros y medio dormido, es exactamente el caso que descarta.
+/// El primer intento de arreglo (PR #38) quito un tope de cadencia que, con la
+/// cuenta hecha, nunca llegaba a morder: el recorte no era nuestro.
+///
+/// Asi que la cuenta que manda es la de `AlgoritmoPasos` sobre `CMDeviceMotion`,
+/// la misma fontaneria que ya usa `SquatDetector`, y el podometro se queda de
+/// red por debajo via `FusionDePasos`. Cuesta poco tenerlo escuchando y solo
+/// puede sumar.
+///
+/// ## Lo que se pierde
+///
+/// El podometro vive en el coprocesador y sigue contando con la pantalla apagada
+/// y la app en segundo plano; `CMDeviceMotion` no. Aqui da igual: la pantalla del
+/// reto esta delante y encendida mientras dura, y si la app se va al fondo la
+/// alarma vuelve a sonar. Y por si acaso, el que sigue contando en el fondo es
+/// justo el que se ha quedado de red.
 public actor StepDetector: ChallengeDetector {
     public let goal: Int
     public nonisolated let progress: AsyncStream<ChallengeProgress>
 
+    private let gestor = CMMotionManager()
     private let podometro = CMPedometer()
+    private let frecuenciaHz: Double
     private let continuacion: AsyncStream<ChallengeProgress>.Continuation
-    private var consumo: Task<Void, Never>?
-    private var vigilante: Task<Void, Never>?
-    private var animador: Task<Void, Never>?
 
-    private var contador: ContadorDePasos
-    private var mostrados = 0
+    private var algoritmo: AlgoritmoPasos
+    private var fusion: FusionDePasos
+    private var consumo: Task<Void, Never>?
+    private var consumoDelPodometro: Task<Void, Never>?
+    private var vigilante: Task<Void, Never>?
+
     private var ultimoAvance = ContinuousClock.now
     private var parado = false
     private var enMarcha = false
+    private var hanLlegadoMuestras = false
+    private var hanLlegadoDatosDelPodometro = false
 
-    public init(goal: Int) {
+    /// Cada arranque lleva su numero. `start()` se suspende por el medio y en
+    /// ese hueco cabe un `stop()` y otro `start()`; sin esto, el arranque viejo
+    /// vuelve del await creyendo que sigue siendo el vigente y desmonta la
+    /// sesion buena o deja un vigilante huerfano latiendo para siempre.
+    private var generacion = 0
+
+    /// Cuanto se espera a que alguna de las dos fuentes de senal de vida diga
+    /// algo antes de dar el movil por incapaz. Lo normal es una muestra a 50 Hz,
+    /// centesimas; esto es para el arranque con la app cargando y la alarma
+    /// sonando encima. Generoso a proposito: pasarse de corto **regala la
+    /// alarma**, porque `sinSensor` suelta el dial.
+    private static let esperaDeArranque: Duration = .seconds(5)
+
+    public init(
+        goal: Int,
+        parametros: ParametrosPaso = .porDefecto,
+        frecuenciaHz: Double = GrabadorDeMovimiento.frecuenciaPorDefecto
+    ) {
         self.goal = goal
-        self.contador = ContadorDePasos(objetivo: goal)
+        self.frecuenciaHz = frecuenciaHz
+        self.algoritmo = AlgoritmoPasos(parametros: parametros)
+        self.fusion = FusionDePasos(objetivo: goal)
         var cont: AsyncStream<ChallengeProgress>.Continuation!
         self.progress = AsyncStream { cont = $0 }
         self.continuacion = cont
@@ -38,21 +84,129 @@ public actor StepDetector: ChallengeDetector {
 
     public func start() async throws {
         guard !enMarcha else { return }
-        guard CMPedometer.isStepCountingAvailable() else {
+        // El acelerometro es el que cuenta, asi que su ausencia si es motivo
+        // para decir que este movil no sabe contar. La falta de podometro, no.
+        guard gestor.isDeviceMotionAvailable else {
             throw ChallengeDetectorError.sensorNoDisponible
         }
-        switch CMPedometer.authorizationStatus() {
-        case .denied, .restricted:
-            throw ChallengeDetectorError.permisoDenegado
-        default:
-            break
-        }
 
+        generacion += 1
+        let mia = generacion
         enMarcha = true
-        contador = ContadorDePasos(objetivo: goal)
-        mostrados = 0
+        algoritmo.reinicia()
+        fusion = FusionDePasos(objetivo: goal)
         ultimoAvance = .now
         parado = false
+        hanLlegadoMuestras = false
+        hanLlegadoDatosDelPodometro = false
+        // El cero se anuncia antes de encender nada, para que ningun paso pueda
+        // adelantarsele por la espera de abajo y el contador vaya hacia atras.
+        continuacion.yield(ChallengeProgress(completed: 0, goal: goal))
+
+        arrancaElAcelerometro()
+        arrancaElPodometro()
+        guard try await esperaASenalDeVida(generacion: mia) else { return }
+
+        vigilante = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Inactividad.periodoDeRevision)
+                // Si el actor ya no esta, `self?` seria nil eternamente y este
+                // bucle seguiria despertando cada medio segundo el resto de la
+                // vida del proceso: la Task la retiene el runtime, no el actor.
+                guard let self else { return }
+                await self.revisaInactividad()
+            }
+        }
+    }
+
+    public func stop() async {
+        guard enMarcha else { return }
+        generacion += 1
+        enMarcha = false
+        gestor.stopDeviceMotionUpdates()
+        podometro.stopUpdates()
+        consumo?.cancel(); consumo = nil
+        consumoDelPodometro?.cancel(); consumoDelPodometro = nil
+        vigilante?.cancel(); vigilante = nil
+        continuacion.finish()
+    }
+
+    /// No sigue hasta que **alguna** de las dos fuentes ha dado senales de vida.
+    ///
+    /// `isDeviceMotionAvailable` dice que el sensor existe, no que este
+    /// entregando. Si arrancara mudo, el usuario se quedaria mirando un cero con
+    /// la alarma sonando y sin una sola pista de que hacer, que es el peor final
+    /// posible en esta app: aqui no se apaga nada sin que algo cuente.
+    ///
+    /// Vale cualquiera de las dos fuentes y se **observa**, no se supone. La
+    /// version anterior preguntaba al arrancar si el podometro estaba
+    /// disponible y se fiaba de la respuesta, y esa respuesta miente: la primera
+    /// vez `authorizationStatus()` es `.notDetermined`, asi que decia que si
+    /// antes de saberlo, y si luego el usuario denegaba el permiso nadie contaba
+    /// y nadie se enteraba.
+    ///
+    /// Y el limite se peca de largo a proposito. Rendirse aqui no es inocuo:
+    /// `sensorNoDisponible` acaba en `estado = .sinSensor`, que **suelta el
+    /// dial**. Un limite corto convertiria un arranque lento del sensor en una
+    /// alarma apagada sin levantarse.
+    ///
+    /// Devuelve `false` si este arranque ya no es el vigente: entonces no hay
+    /// nada que decir ni que desmontar, manda el que vino despues.
+    private func esperaASenalDeVida(generacion mia: Int) async throws -> Bool {
+        let limite = ContinuousClock.now.advanced(by: Self.esperaDeArranque)
+        while !hayAlgunaSenal, generacion == mia, !Task.isCancelled,
+              ContinuousClock.now < limite {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        guard generacion == mia, !Task.isCancelled else { return false }
+        guard !hayAlgunaSenal else { return true }
+        await stop()
+        throw ChallengeDetectorError.sensorNoDisponible
+    }
+
+    private var hayAlgunaSenal: Bool { hanLlegadoMuestras || hanLlegadoDatosDelPodometro }
+
+    // MARK: - Los dos sensores
+
+    private func arrancaElAcelerometro() {
+        // `CMDeviceMotion` no es Sendable: del callback solo salen numeros, ya
+        // empaquetados en una muestra que si lo es.
+        let (flujo, continuacionDeMuestras) = AsyncStream.makeStream(of: MuestraDeMovimiento.self)
+
+        let cola = OperationQueue()
+        cola.maxConcurrentOperationCount = 1
+        cola.qualityOfService = .userInitiated
+
+        gestor.deviceMotionUpdateInterval = 1 / frecuenciaHz
+        // `xArbitraryZVertical` no necesita la brujula, asi que arranca al
+        // instante. Da igual hacia donde mire el movil: lo unico que se usa es
+        // `gravity`, y eso lo da cualquier marco de referencia.
+        gestor.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: cola) { movimiento, _ in
+            guard let m = movimiento else { return }
+            continuacionDeMuestras.yield(
+                MuestraDeMovimiento(
+                    t: m.timestamp,
+                    ax: m.userAcceleration.x, ay: m.userAcceleration.y, az: m.userAcceleration.z,
+                    gx: m.gravity.x, gy: m.gravity.y, gz: m.gravity.z
+                )
+            )
+        }
+
+        consumo = Task { [weak self] in
+            for await muestra in flujo {
+                await self?.procesa(muestra)
+            }
+        }
+    }
+
+    /// La red por debajo. Que no haya podometro, o que el permiso este denegado,
+    /// no para el reto: el que cuenta es el otro.
+    private func arrancaElPodometro() {
+        guard CMPedometer.isStepCountingAvailable() else { return }
+        switch CMPedometer.authorizationStatus() {
+        case .denied, .restricted: return
+        default: break
+        }
 
         // Desde *ahora*: los pasos que diera antes de que sonara la alarma no
         // cuentan. `startUpdates(from:)` acepta fechas pasadas y devolveria el
@@ -67,72 +221,55 @@ public actor StepDetector: ChallengeDetector {
             continuacionDePasos.yield(datos.numberOfSteps.intValue)
         }
 
-        consumo = Task { [weak self] in
-            for await brutos in flujo {
-                await self?.registra(brutos: brutos)
+        consumoDelPodometro = Task { [weak self] in
+            for await acumulados in flujo {
+                await self?.registraDelPodometro(acumulados)
             }
         }
-        vigilante = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: Inactividad.periodoDeRevision)
-                await self?.revisaInactividad()
-            }
-        }
-
-        continuacion.yield(ChallengeProgress(completed: 0, goal: goal))
     }
 
-    public func stop() async {
+    // MARK: - Contar
+
+    private func procesa(_ muestra: MuestraDeMovimiento) {
         guard enMarcha else { return }
-        enMarcha = false
-        podometro.stopUpdates()
-        consumo?.cancel(); consumo = nil
-        vigilante?.cancel(); vigilante = nil
-        animador?.cancel(); animador = nil
-        continuacion.finish()
+        hanLlegadoMuestras = true
+        let salida = algoritmo.procesa(
+            t: muestra.t,
+            aceleracionVertical: muestra.aceleracionVertical,
+            gravedad: (muestra.gx, muestra.gy, muestra.gz)
+        )
+
+        // Solo el paso cerrado cuenta como movimiento valido. Que la senal se
+        // mueva no basta: si asi fuera, mecer el movil en la cama aplazaria el
+        // abandono para siempre sin haber dado un paso.
+        guard salida.pasoCompletado else { return }
+        avanza(fusion.paso())
     }
 
-    /// `numberOfSteps` es acumulado desde `desde`, no un incremento.
-    private func registra(brutos: Int) {
-        guard enMarcha, contador.registrar(acumulados: brutos) else { return }
-        let ahora = ContinuousClock.now
-        ultimoAvance = ahora
+    /// `numberOfSteps` es acumulado desde que arranco el reto, no un incremento.
+    private func registraDelPodometro(_ acumulados: Int) {
+        guard enMarcha else { return }
+        hanLlegadoDatosDelPodometro = true
+        avanza(fusion.podometro(acumulados: acumulados))
+    }
+
+    private func avanza(_ avance: FusionDePasos.Avance) {
+        guard avance.hayPasos else { return }
+        // El reloj del abandono se refresca con cualquier paso real, aunque el
+        // numero no se mueva porque la otra fuente ya iba por delante.
+        ultimoAvance = .now
+        let estaba = parado
         parado = false
-        animarPasosPendientes()
+        if avance.cambiaElTotal || estaba { emite() }
 
-        if contador.terminado { podometro.stopUpdates() }
-    }
-
-    /// Core Motion agrupa varios pasos en cada callback. El dato se conserva
-    /// tal cual, pero se presenta de uno en uno para que la cifra y la vibracion
-    /// den feedback continuo en vez de saltar, por ejemplo, de 0 a 8.
-    private func animarPasosPendientes() {
-        guard animador == nil else { return }
-        animador = Task { [weak self] in
-            await self?.mostrarPasosPendientes()
-        }
-    }
-
-    private func mostrarPasosPendientes() async {
-        defer { animador = nil }
-
-        while enMarcha, mostrados < contador.contados, !Task.isCancelled {
-            mostrados += 1
-            emite()
-
-            guard mostrados < goal else { return }
-            do {
-                // Algo mas rapido que un paso normal para alcanzar al dato real
-                // si el podometro entrega una tanda grande, sin parecer un salto.
-                try await Task.sleep(for: .milliseconds(120))
-            } catch {
-                return
-            }
+        if fusion.terminado {
+            gestor.stopDeviceMotionUpdates()
+            podometro.stopUpdates()
         }
     }
 
     private func revisaInactividad() {
-        guard enMarcha, !contador.terminado else { return }
+        guard enMarcha, !fusion.terminado else { return }
         let inactivo = ultimoAvance.duration(to: .now) >= Inactividad.umbral
         guard inactivo != parado else { return }
         parado = inactivo
@@ -141,33 +278,8 @@ public actor StepDetector: ChallengeDetector {
 
     private func emite() {
         continuacion.yield(
-            ChallengeProgress(completed: mostrados, goal: goal, isStalled: parado)
+            ChallengeProgress(completed: fusion.contados, goal: goal, isStalled: parado)
         )
     }
 }
 #endif
-
-/// Convierte las lecturas acumuladas de `CMPedometer` en progreso del reto.
-///
-/// El podometro no entrega una muestra por paso: agrupa varios y puede mandar
-/// tandas muy seguidas. Por eso no se puede limitar cada tanda usando el tiempo
-/// entre callbacks; hacerlo descartaba pasos reales de manera permanente.
-struct ContadorDePasos {
-    let objetivo: Int
-    private(set) var contados = 0
-    private var acumuladosAnteriores = 0
-
-    init(objetivo: Int) {
-        self.objetivo = objetivo
-    }
-
-    var terminado: Bool { contados >= objetivo }
-
-    mutating func registrar(acumulados: Int) -> Bool {
-        guard acumulados > acumuladosAnteriores else { return false }
-        let nuevos = acumulados - acumuladosAnteriores
-        acumuladosAnteriores = acumulados
-        contados = min(objetivo, contados + nuevos)
-        return true
-    }
-}

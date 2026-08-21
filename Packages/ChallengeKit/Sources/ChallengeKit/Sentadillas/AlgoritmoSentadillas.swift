@@ -71,6 +71,11 @@ public struct AlgoritmoSentadillas: Sendable {
     public mutating func procesa(t: Double, aceleracionVertical a: Double) -> Salida {
         let p = parametros
 
+        // Lo mismo que en `AlgoritmoPasos`: una sola muestra corrupta envenena
+        // los filtros y la integral para siempre, y a partir de ahi el contador
+        // se queda clavado con la alarma sonando. Se tira y se sigue.
+        guard a.isFinite, t.isFinite else { return salida(t: t, repeticionCompletada: false) }
+
         guard let anterior = tAnterior else {
             // Primera muestra: solo sirve para sembrar el sesgo y el reloj.
             tAnterior = t

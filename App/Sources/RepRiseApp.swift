@@ -1,6 +1,7 @@
 import SwiftUI
 import AlarmCore
 import AlarmScheduler
+import ChallengeKit
 import DesignSystem
 import Persistence
 
@@ -28,12 +29,12 @@ struct RepRiseApp: App {
 /// pulsar "Hacer el reto" abria la app por la lista de alarmas y ahi se
 /// acababa todo.
 ///
-/// Hasta el 21 de agosto de 2026 colgaba aqui una segunda barra, visible solo en
-/// DEBUG, con la calibracion de sentadillas al lado de la app. Se quito al dar
-/// por cerrada la calibracion. La herramienta no se ha borrado: `CalibracionView`
-/// sigue en `ChallengeKit` y se puede volver a colgar el dia que haya que medir
-/// otra vez —hara falta, porque el detector se cerro con dos sesiones de las
-/// cinco que pedia el encargo.
+/// La segunda barra de DEBUG con la calibracion **ha vuelto**, y por lo que se
+/// dijo el dia que se quito: "se puede volver a colgar el dia que haya que medir
+/// otra vez". Ese dia es hoy. El contador de pasos ya no es `CMPedometer` sino
+/// codigo nuestro (issue #35), y sus umbrales son una hipotesis mientras no haya
+/// una grabacion de alguien andando de verdad. Sin esta barra no hay forma de
+/// hacerla.
 struct RootView: View {
     /// El almacen se monta una sola vez, al arrancar, y de el cuelgan **las dos**
     /// cosas que escriben en disco. No es una preferencia de estilo:
@@ -98,6 +99,26 @@ struct RootView: View {
 
     @ViewBuilder
     private var contenido: some View {
+        #if DEBUG
+        // Con un reto en marcha, la barra desaparece hasta en DEBUG. Una pestana
+        // al lado del contador es una puerta para salirse del reto sin hacerlo,
+        // y da igual que solo exista en las compilaciones nuestras: es
+        // exactamente el agujero que la pantalla del reto se cuida de no dejar.
+        if reto?.hayReto == true {
+            app
+        } else {
+            TabView {
+                app.tabItem { Label("App", systemImage: "alarm") }
+                CalibracionView().tabItem { Label("Calibracion", systemImage: "waveform.path.ecg") }
+            }
+        }
+        #else
+        app
+        #endif
+    }
+
+    @ViewBuilder
+    private var app: some View {
         if let racha, let alarmas {
             // El reto va por delante de todo, incluso de un fallo de racha: la
             // alarma esta sonando y lo unico que la calla es terminarlo. Y va

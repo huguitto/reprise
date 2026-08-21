@@ -42,8 +42,11 @@ public struct Grabacion: Codable, Sendable, Identifiable, Hashable {
     public enum Tipo: String, Codable, Sendable, Hashable {
         /// Sentadillas de verdad: aqui el detector tiene que acertar el numero.
         case sentadillas
+        /// Pasos de verdad, andando con el movil en la mano como se anda a las
+        /// seis de la manana. Aqui el detector tambien tiene que acertar.
+        case pasos
         /// Trampa deliberada (agitar el movil sentado en la cama). Aqui el
-        /// detector tiene que quedarse corto.
+        /// detector tiene que quedarse corto, en los dos retos.
         case trampa
     }
 
