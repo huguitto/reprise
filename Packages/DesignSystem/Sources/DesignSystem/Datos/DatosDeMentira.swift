@@ -119,6 +119,8 @@ public enum DatosDeMentira {
 
     public static let ventajasPro: [(simbolo: String, texto: String)] = [
         ("alarm.waves.left.and.right.fill", "Alarmas ilimitadas, no una"),
+        ("repeat", "Repetición por días de la semana"),
+        ("heart.fill", "2 vidas al mes para la racha"),
         ("music.note.list", "El catálogo de tonos entero"),
         ("chart.bar.fill", "Estadísticas e histórico completo"),
         ("flag.fill", "Ranking filtrado por país"),

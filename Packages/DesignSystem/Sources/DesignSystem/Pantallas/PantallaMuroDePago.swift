@@ -2,10 +2,18 @@ import SwiftUI
 
 /// Muro de pago.
 ///
-/// La regla de producto es que **se vende todo lo que rodea a la racha y nunca
-/// la racha**. Eso se dice en la pantalla, en la letra pequena, porque es
-/// exactamente lo que diferencia a esta app de las que venden vidas: si el
-/// argumento no se ve, no existe.
+/// La regla cambio el 21/08/2026 y esta pantalla iba retrasada: **las vidas son
+/// de Pro**. Lo que sigue sin venderse es la racha misma —el dinero no
+/// reconstruye una rota ni sube el contador— y las vidas sueltas por compra
+/// puntual.
+///
+/// Hasta ese cambio aqui ponia "las vidas no se venden, ni ahora ni nunca",
+/// que era una promesa explicita al usuario. Con las vidas ya cobrandose, esa
+/// frase pasaba de ser el argumento de la app a ser una mentira cobrada, y por
+/// eso se va entera en vez de suavizarse.
+///
+/// Lo que sigue igual es el motivo de que haya letra pequena: el limite de lo
+/// que se vende solo cuenta si el usuario lo lee antes de pagar.
 public struct PantallaMuroDePago: View {
     @State private var plan: Plan = .anual
     @Environment(\.dismiss) private var cerrar
@@ -19,7 +27,9 @@ public struct PantallaMuroDePago: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
-                Cabecera("RepRise Pro", subtitulo: "sin tocar la racha") {
+                // "sin tocar la racha" ya no valia: con las vidas dentro de Pro,
+                // pagar si protege la racha de un fallo.
+                Cabecera("RepRise Pro", subtitulo: "la racha se gana") {
                     Button { cerrar() } label: { Image(systemName: "xmark") }
                         .buttonStyle(.redondo)
                         .accessibilityLabel(Text("Cerrar"))
@@ -72,10 +82,10 @@ public struct PantallaMuroDePago: View {
                 .padding(.horizontal, Espacio.margen)
 
                 VStack(alignment: .leading, spacing: Espacio.corto) {
-                    Text("Las vidas no se venden.")
+                    Text("La racha no se compra.")
                         .font(Tipografia.pieFuerte)
                         .foregroundStyle(Paleta.texto)
-                    Text("Ni ahora ni nunca. Comprar vidas convertiría el ranking en una lista de quien paga más, y entonces la racha dejaría de significar nada.")
+                    Text("Pro te da 2 vidas cada mes para que un mal día no te la tire. Lo que no hace el dinero es reconstruir una racha ya rota ni subirte el contador: eso solo se gana levantándose.")
                         .font(Tipografia.pie)
                         .foregroundStyle(Paleta.textoSuave)
                 }
