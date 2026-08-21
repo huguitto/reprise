@@ -61,6 +61,27 @@ public struct BarraDeSecciones: View {
         .relieve(.medio, forma: Capsule(), color: Paleta.superficieAlta)
         .padding(.horizontal, Espacio.margen)
         .padding(.bottom, Espacio.corto)
+        .background {
+            // La capsula flota, asi que por sus lados y por debajo se ve la
+            // lista pasando. Un velo del color del fondo lo tapa, y va
+            // desvanecido hacia arriba para que la barra no traiga un canto
+            // duro cruzando la pantalla.
+            // El velo tiene que estar opaco del todo antes de llegar al canto
+            // de la capsula: si no, lo que se cuela por el costado es justo lo
+            // que mas canta, un interruptor encendido en modo oscuro.
+            LinearGradient(
+                stops: [
+                    .init(color: Paleta.fondo.opacity(0), location: 0),
+                    .init(color: Paleta.fondo, location: 0.35),
+                    .init(color: Paleta.fondo, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .padding(.top, -Espacio.enorme)
+            .ignoresSafeArea(edges: .bottom)
+            .allowsHitTesting(false)
+        }
     }
 
     private func boton(_ seccion: Seccion) -> some View {
