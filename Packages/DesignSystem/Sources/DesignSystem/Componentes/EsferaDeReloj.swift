@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 /// Cual de las dos bolitas de la esfera se esta moviendo.
 ///
@@ -24,9 +25,11 @@ public enum Manecilla: Hashable, Sendable, CaseIterable {
 /// hora en matriz de puntos a dos pisos. Es la pieza mas cara de la app en
 /// atencion visual, asi que sale **una sola vez por pantalla**.
 ///
-/// Tiene dos formas de existir:
+/// Tiene tres formas de existir:
 ///
 /// - **De mirar** (`init(hora:minuto:...)`): la de la lista y la presentacion.
+/// - **De mirar la hora que es** (`init(horaQueEs:...)`): la misma pieza, pero
+///   contando el reloj. Sale en la lista cuando no hay ninguna alarma puesta.
 /// - **De tocar** (`init(hora:minuto:manecilla:...)`): la de crear o editar una
 ///   alarma. Ahi las dos bolitas se arrastran y la esfera *es* el selector de
 ///   hora; no hay rueda del sistema en ningun sitio.
@@ -37,6 +40,17 @@ public struct EsferaDeReloj: View {
     private let activa: Bool
     private let diametro: CGFloat
     private let ajustable: Bool
+    private let lectura: Lectura
+
+    /// Que numero esta contando la esfera cuando solo se mira.
+    ///
+    /// No cambia nada de lo que se ve —es el mismo disco, y a proposito— sino
+    /// lo que dice VoiceOver: una alarma puesta a las siete y las siete que son
+    /// ahora mismo se leen igual en la esfera y no significan lo mismo.
+    private enum Lectura {
+        case alarma
+        case horaQueEs
+    }
 
     /// Esfera de mirar. No responde al dedo.
     public init(hora: Int, minuto: Int, activa: Bool = true, diametro: CGFloat = 260) {
@@ -46,6 +60,23 @@ public struct EsferaDeReloj: View {
         self.activa = activa
         self.diametro = diametro
         self.ajustable = false
+        self.lectura = .alarma
+    }
+
+    /// Esfera de mirar la hora que es. Tampoco responde al dedo.
+    ///
+    /// Entra un `Date` y no dos enteros para que no se pueda confundir con la
+    /// de la alarma en el sitio de la llamada: son el mismo disco pintando dos
+    /// cosas distintas.
+    public init(horaQueEs momento: Date, calendario: Calendar = .current, diametro: CGFloat = 260) {
+        let partes = calendario.dateComponents([.hour, .minute], from: momento)
+        self._hora = .constant(partes.hour ?? 0)
+        self._minuto = .constant(partes.minute ?? 0)
+        self._manecilla = .constant(.hora)
+        self.activa = true
+        self.diametro = diametro
+        self.ajustable = false
+        self.lectura = .horaQueEs
     }
 
     /// Esfera de tocar: las bolitas se arrastran para poner la hora.
@@ -64,6 +95,7 @@ public struct EsferaDeReloj: View {
         self.activa = true
         self.diametro = diametro
         self.ajustable = true
+        self.lectura = .alarma
     }
 
     /// Lo que dura un arrastre. `nil` mientras el dedo no esta puesto.
@@ -91,10 +123,17 @@ public struct EsferaDeReloj: View {
         } else {
             esfera
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel(Text(
-                    String(format: activa ? "Alarma puesta a las %d:%02d" : "Alarma apagada, %d:%02d",
-                           hora, minuto)
-                ))
+                .accessibilityLabel(Text(String(format: plantillaHablada, hora, minuto)))
+        }
+    }
+
+    /// Lo que oye VoiceOver en la esfera de mirar. La hora sola no basta: en
+    /// esta pantalla el mismo disco es a veces la alarma de manana y a veces el
+    /// reloj de ahora, y sin decirlo no hay forma de distinguirlo.
+    private var plantillaHablada: String {
+        switch lectura {
+        case .horaQueEs: "Son las %d:%02d"
+        case .alarma: activa ? "Alarma puesta a las %d:%02d" : "Alarma apagada, %d:%02d"
         }
     }
 
@@ -232,6 +271,30 @@ public struct EsferaDeReloj: View {
         /// En que hora del 0 al 11 estaba la marca en el paso anterior. Es lo
         /// que permite ver que ha dado la vuelta por las doce.
         var posicionPreviaDeLaHora: Int?
+    }
+}
+
+/// La esfera contando la hora que es, y poniendose al dia sola.
+///
+/// Es lo que ocupa el sitio de la esfera en la lista cuando no hay ninguna
+/// alarma puesta. Ese hueco es el centro de la pantalla: vacio, la app parece
+/// rota antes de que nadie llegue a leer que no hay alarmas.
+///
+/// Se redibuja al filo de cada minuto y no cada segundo porque la esfera no
+/// tiene segundero: pintar sesenta veces lo mismo solo gasta bateria. De los
+/// avisos se encarga `TimelineView`, que ademas se calla mientras la pantalla
+/// no se ve.
+public struct RelojDeAhora: View {
+    private let diametro: CGFloat
+
+    public init(diametro: CGFloat = 260) {
+        self.diametro = diametro
+    }
+
+    public var body: some View {
+        TimelineView(.everyMinute) { pauta in
+            EsferaDeReloj(horaQueEs: pauta.date, diametro: diametro)
+        }
     }
 }
 
@@ -419,6 +482,10 @@ struct MuestraDeEsfera: View {
                     }
                 }
                 EsferaDeReloj(hora: 8, minuto: 20, activa: false, diametro: 140)
+                RelojDeAhora(diametro: 140)
+                Text("La hora que es, en marcha")
+                    .font(Tipografia.pie)
+                    .foregroundStyle(Paleta.textoTenue)
             }
             .padding(Espacio.ancho)
             .frame(maxWidth: .infinity)
