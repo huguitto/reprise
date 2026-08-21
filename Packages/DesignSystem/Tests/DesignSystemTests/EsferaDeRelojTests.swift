@@ -77,7 +77,7 @@ struct AgarreDeLaEsferaTests {
     func cercaniaPorEncimaDelAnillo() {
         // La hora esta en el 3 y el minuto en el 0. El dedo cae justo fuera de
         // la frontera, pero encima de la bolita de la hora.
-        let punto = toque(vueltas: 0.25, radio: 0.38)
+        let punto = toque(vueltas: 0.25, radio: Esferica.frontera + 0.01)
         #expect(Esferica.manecilla(paraToque: punto, diametro: 200, hora: 3, minuto: 0) == .hora)
     }
 
@@ -87,8 +87,8 @@ struct AgarreDeLaEsferaTests {
     @Test("Con las dos bolitas en el mismo angulo manda el radio",
           arguments: [(12, 0, 0.0), (6, 30, 0.5), (0, 0, 0.0), (3, 15, 0.25)])
     func bolitasJuntas(hora: Int, minuto: Int, vueltas: Double) {
-        let enLaHora = toque(vueltas: vueltas, radio: 0.315)
-        let enElMinuto = toque(vueltas: vueltas, radio: 0.415)
+        let enLaHora = toque(vueltas: vueltas, radio: Esferica.sitio(de: .hora).radio)
+        let enElMinuto = toque(vueltas: vueltas, radio: Esferica.sitio(de: .minuto).radio)
         #expect(Esferica.manecilla(paraToque: enLaHora, diametro: 200,
                                    hora: hora, minuto: minuto) == .hora)
         #expect(Esferica.manecilla(paraToque: enElMinuto, diametro: 200,
@@ -107,6 +107,41 @@ struct AgarreDeLaEsferaTests {
         // 12:00: las dos arriba. El dedo toca abajo del todo.
         let abajo = toque(vueltas: 0.5, radio: 0.48)
         #expect(Esferica.manecilla(paraToque: abajo, diametro: 200, hora: 12, minuto: 0) == .minuto)
+    }
+}
+
+@Suite("Esfera: donde caen las bolitas")
+struct SitioDeLasBolitasTests {
+
+    // Esto es lo unico de la esfera que no se decide mirando: la bolita de la
+    // hora pasaba tan cerca de los digitos que a la 1, a las 5, a las 7 y a las
+    // 11 —las diagonales, donde asoma la esquina de la caja de la matriz— se
+    // metia dentro y pisaba el ultimo punto de la cifra. Se veia poco y solo a
+    // ciertas horas, que es justo por lo que conviene tenerlo aqui clavado.
+
+    @Test("Ninguna bolita se mete en los digitos del centro", arguments: Manecilla.allCases)
+    func lasBolitasNoPisanLosDigitos(cual: Manecilla) {
+        let holgura = Esferica.holguraConLosDigitos(de: cual)
+        // 0,02 del diametro son cinco puntos y pico en la esfera de editar. No
+        // es "que no se toquen": es que se vea el aire entre medias.
+        #expect(holgura > 0.02, "la bolita de \(cual.nombre) deja \(holgura) de aire")
+    }
+
+    @Test("Las dos bolitas no se tocan cuando coinciden en angulo")
+    func lasBolitasNoSePisanEntreSi() {
+        let hora = Esferica.sitio(de: .hora)
+        let minuto = Esferica.sitio(de: .minuto)
+        let aire = minuto.radio - hora.radio - hora.bolita / 2 - minuto.bolita / 2
+        #expect(aire > 0.02, "entre las dos bolitas quedan \(aire)")
+    }
+
+    @Test("La frontera cae entre las dos bolitas")
+    func fronteraEntreLosDosAnillos() {
+        #expect(Esferica.frontera > Esferica.sitio(de: .hora).radio)
+        #expect(Esferica.frontera < Esferica.sitio(de: .minuto).radio)
+        // Y la zona muerta se queda por dentro de la de la hora: si no, no
+        // habria forma de coger la bolita de dentro.
+        #expect(Esferica.zonaMuerta < Esferica.sitio(de: .hora).radio)
     }
 }
 
