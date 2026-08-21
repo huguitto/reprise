@@ -240,6 +240,96 @@ struct ProgramarTests {
         #expect(modelo.autorizacion == .denegado)
         #expect(modelo.avisoDePermiso == AlarmAuthorizationCopy.avisoEnLista)
     }
+
+    @Test("Que el sistema no diga que tiene puesto no impide programar")
+    func consultarFallaPeroSeProgramaIgual() async throws {
+        // El fallo del issue #36. Consultar es para saber que sobra; si no
+        // contesta, se programa igual y no se molesta al usuario con un
+        // "no se ha podido programar la alarma" que ademas era falso.
+        let programador = ProgramadorMudo()
+        let (modelo, _) = modeloDePrueba(programador: programador)
+
+        let alarma = Alarm(hour: 6, minute: 30, challenge: .pasos)
+        await modelo.guardar(alarma)
+
+        #expect(await programador.puestas == [alarma.id])
+        #expect(modelo.fallo == nil)
+    }
+
+    @Test("Una alarma que el sistema rechaza no se lleva por delante a las demas")
+    func unaMalaNoTumbaLasBuenas() async throws {
+        let mala = Alarm(hour: 5, minute: 0, challenge: .pasos)
+        let buena = Alarm(hour: 7, minute: 0, challenge: .sentadillas)
+        let programador = ProgramadorConUnaMala(mala: mala.id)
+        let (modelo, _) = modeloDePrueba(programador: programador)
+
+        await modelo.guardar(mala)
+        await modelo.guardar(buena)
+
+        // La buena esta puesta aunque la otra fallara antes en el mismo bucle...
+        #expect(await programador.puestas == [buena.id])
+        // ...y del fallo de la mala se entera el usuario igualmente.
+        #expect(modelo.fallo != nil)
+    }
+
+    @Test("Dos sincronizaciones no se pisan: van en cola")
+    func lasSincronizacionesHacenCola() async throws {
+        let programador = ProgramadorLento()
+        let alarma = Alarm(hour: 6, minute: 0, challenge: .pasos)
+        let (modelo, _) = modeloDePrueba(alarmas: [alarma], programador: programador)
+
+        // Dos caminos que en la app salen de `Task` distintas: abrir la
+        // pantalla y guardar. Solapados, mandaban dos `schedule` del mismo id
+        // a la vez y AlarmKit contestaba a uno con un error pelado.
+        async let abrir: Void = modelo.cargar()
+        async let guardar = modelo.guardar(Alarm(hour: 9, minute: 15, challenge: .pasos))
+        _ = await (abrir, guardar)
+
+        #expect(await programador.seSolaparon == false)
+    }
+
+    @Test("Apagar mientras se sincroniza gana: no la revive la de antes")
+    func apagarGanaALaSincronizacionEnVuelo() async throws {
+        // Una sincronizacion calcula "lo que debe sonar" al empezar. Si mientras
+        // esta programando el usuario apaga la alarma, la vieja la volvia a
+        // poner despues de que la nueva la cancelara: quedaba puesta en el
+        // sistema con el interruptor apagado en pantalla.
+        let programador = ProgramadorConFreno()
+        let (modelo, _) = modeloDePrueba(programador: programador)
+        let alarma = Alarm(hour: 6, minute: 0, challenge: .pasos)
+
+        let guardando = Task { await modelo.guardar(alarma) }
+        await programador.esperarAQueSeFrene()
+
+        let apagando = Task { await modelo.cambiarEncendido(id: alarma.id, a: false) }
+        await programador.soltar()
+        _ = await guardando.value
+        _ = await apagando.value
+
+        #expect(modelo.alarmas.first?.isEnabled == false)
+        #expect(await programador.puestas.isEmpty)
+    }
+
+    @Test("Si no se puede leer el disco, no se cancela lo que estaba puesto")
+    func discoRotoNoDesprogramaNada() async throws {
+        // Un tropiezo del disco al abrir dejaba `alarmas` vacia, y con eso la
+        // sincronizacion cancelaba todo lo que si estaba puesto en el sistema.
+        let programador = PreviewAlarmScheduler()
+        let yaPuesta = Alarm(hour: 6, minute: 0, challenge: .pasos)
+        try await programador.schedule(yaPuesta)
+
+        let plan = ModeloDelPlan(defaults: UserDefaults(suiteName: "reprise.tests.\(UUID().uuidString)")!)
+        plan.contratarPro()
+        let modelo = ModeloDeAlarmas(
+            repositorio: AlmacenQueFalla(), programador: programador, plan: plan
+        )
+
+        await modelo.cargar()
+
+        #expect(try await programador.scheduledAlarmIDs() == [yaPuesta.id])
+        // Y el aviso sigue en pantalla en vez de borrarlo la sincronizacion.
+        #expect(modelo.fallo != nil)
+    }
 }
 
 @MainActor
@@ -323,8 +413,17 @@ struct PlanTests {
     func caerAGratisNoBorra() async throws {
         let programador = PreviewAlarmScheduler()
         let (modelo, plan) = modeloDePrueba(programador: programador)
-        let vieja = Alarm(hour: 6, minute: 0, weekdays: [.lunes, .martes], challenge: .pasos)
-        let ultima = Alarm(hour: 7, minute: 0, weekdays: [.sabado], challenge: .pasos)
+        // Las fechas van a mano: creadas asi seguidas, `Date()` puede darles la
+        // misma y entonces desempata el `id`, que es aleatorio. El test miraba
+        // "la de arriba" y una vez de cada quince salia la otra.
+        let vieja = Alarm(
+            hour: 6, minute: 0, weekdays: [.lunes, .martes], challenge: .pasos,
+            creadaEn: Date(timeIntervalSince1970: 1_000)
+        )
+        let ultima = Alarm(
+            hour: 7, minute: 0, weekdays: [.sabado], challenge: .pasos,
+            creadaEn: Date(timeIntervalSince1970: 2_000)
+        )
         await modelo.guardar(vieja)
         await modelo.guardar(ultima)
         #expect(try await programador.scheduledAlarmIDs().count == 2)
@@ -350,6 +449,114 @@ private struct AlmacenQueFalla: AlarmRepository {
     func all() async throws -> [Alarm] { throw Roto() }
     func save(_ alarm: Alarm) async throws { throw Roto() }
     func delete(id: Alarm.ID) async throws { throw Roto() }
+}
+
+/// Un programador que programa bien pero no sabe decir que tiene puesto.
+///
+/// Es el caso real del `com.apple.AlarmKit code=0`: consultar es lo unico que
+/// falla, y eso no puede impedir que se programe.
+private actor ProgramadorMudo: AlarmScheduling {
+    struct NoContesta: Error {}
+    private(set) var puestas: Set<Alarm.ID> = []
+
+    func authorizationState() async -> AlarmAuthorizationState { .autorizado }
+    func requestAuthorization() async throws -> AlarmAuthorizationState { .autorizado }
+    func schedule(_ alarm: Alarm) async throws { puestas.insert(alarm.id) }
+    func cancel(alarmID: Alarm.ID) async throws { puestas.remove(alarmID) }
+    func scheduledAlarmIDs() async throws -> Set<Alarm.ID> { throw NoContesta() }
+    func silenceCurrentAlarm() async {}
+    func resumeCurrentAlarm() async {}
+}
+
+/// Un programador al que se le atraganta una alarma concreta y las demas le
+/// entran bien.
+private actor ProgramadorConUnaMala: AlarmScheduling {
+    private let mala: Alarm.ID
+    private(set) var puestas: Set<Alarm.ID> = []
+
+    init(mala: Alarm.ID) { self.mala = mala }
+
+    func authorizationState() async -> AlarmAuthorizationState { .autorizado }
+    func requestAuthorization() async throws -> AlarmAuthorizationState { .autorizado }
+
+    func schedule(_ alarm: Alarm) async throws {
+        guard alarm.id != mala else {
+            throw AlarmSchedulerError.fallaDeAlarmKit(
+                descripcion: "Error Domain=com.apple.AlarmKit code=0 \"(null)\""
+            )
+        }
+        puestas.insert(alarm.id)
+    }
+
+    func cancel(alarmID: Alarm.ID) async throws { puestas.remove(alarmID) }
+    func scheduledAlarmIDs() async throws -> Set<Alarm.ID> { puestas }
+    func silenceCurrentAlarm() async {}
+    func resumeCurrentAlarm() async {}
+}
+
+/// Un programador que tarda en programar, para poder mirar que pasa mientras.
+private actor ProgramadorLento: AlarmScheduling {
+    private(set) var puestas: Set<Alarm.ID> = []
+    /// Si en algun momento hubo dos `schedule` a la vez.
+    private(set) var seSolaparon = false
+    private var enCurso = 0
+
+    func authorizationState() async -> AlarmAuthorizationState { .autorizado }
+    func requestAuthorization() async throws -> AlarmAuthorizationState { .autorizado }
+
+    func schedule(_ alarm: Alarm) async throws {
+        enCurso += 1
+        if enCurso > 1 { seSolaparon = true }
+        try? await Task.sleep(for: .milliseconds(30))
+        enCurso -= 1
+        puestas.insert(alarm.id)
+    }
+
+    func cancel(alarmID: Alarm.ID) async throws { puestas.remove(alarmID) }
+    func scheduledAlarmIDs() async throws -> Set<Alarm.ID> { puestas }
+    func silenceCurrentAlarm() async {}
+    func resumeCurrentAlarm() async {}
+}
+
+/// Un programador que se queda parado dentro de `schedule` hasta que el test lo
+/// suelta. Con el se mira que pasa mientras una sincronizacion esta a medias,
+/// sin depender de ningun `sleep` ni de que maquina lo corra.
+private actor ProgramadorConFreno: AlarmScheduling {
+    private(set) var puestas: Set<Alarm.ID> = []
+    private var frenados: [CheckedContinuation<Void, Never>] = []
+    private var suelto = false
+    private var quienEspera: CheckedContinuation<Void, Never>?
+
+    /// Vuelve cuando hay alguien parado dentro de `schedule`.
+    func esperarAQueSeFrene() async {
+        guard frenados.isEmpty else { return }
+        await withCheckedContinuation { quienEspera = $0 }
+    }
+
+    func soltar() {
+        suelto = true
+        frenados.forEach { $0.resume() }
+        frenados = []
+    }
+
+    func authorizationState() async -> AlarmAuthorizationState { .autorizado }
+    func requestAuthorization() async throws -> AlarmAuthorizationState { .autorizado }
+
+    func schedule(_ alarm: Alarm) async throws {
+        if !suelto {
+            await withCheckedContinuation { continuacion in
+                frenados.append(continuacion)
+                quienEspera?.resume()
+                quienEspera = nil
+            }
+        }
+        puestas.insert(alarm.id)
+    }
+
+    func cancel(alarmID: Alarm.ID) async throws { puestas.remove(alarmID) }
+    func scheduledAlarmIDs() async throws -> Set<Alarm.ID> { puestas }
+    func silenceCurrentAlarm() async {}
+    func resumeCurrentAlarm() async {}
 }
 
 /// Un programador con el permiso denegado que no acepta nada.

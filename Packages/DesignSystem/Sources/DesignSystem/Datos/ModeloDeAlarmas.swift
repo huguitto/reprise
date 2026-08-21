@@ -38,6 +38,10 @@ public final class ModeloDeAlarmas {
     private let repositorio: any AlarmRepository
     private let programador: any AlarmScheduling
     private let plan: ModeloDelPlan
+    /// La ultima sincronizacion lanzada. Es la cola de una sola fila que impide
+    /// que dos se pisen; ver `sincronizarProgramador()`. Fuera de la
+    /// observacion: es fontaneria, y no hay nada que repintar cuando cambia.
+    @ObservationIgnored private var sincronizacionEnCurso: Task<Void, Never>?
 
     public init(
         repositorio: any AlarmRepository,
@@ -94,14 +98,23 @@ public final class ModeloDeAlarmas {
     /// Relee el disco, pide el permiso si no se ha pedido nunca y deja el
     /// sistema en sintonia con lo guardado. Idempotente.
     public func cargar() async {
+        var seHaLeido = true
         do {
             alarmas = Self.ordenadas(try await repositorio.all())
             fallo = nil
         } catch {
             fallo = "No se han podido leer las alarmas guardadas."
+            seHaLeido = false
         }
         cargando = false
         await refrescarAutorizacion()
+        // Sin saber que hay guardado no se toca el sistema. `alarmas` se queda
+        // como estaba —vacia, en el arranque—, y sincronizar con eso cancelaria
+        // todo lo que si estaba puesto: un tropiezo del disco al abrir la app
+        // dejaria a alguien sin despertador y sin un solo aviso, porque el
+        // mensaje de aqui arriba lo borraba luego la propia sincronizacion al
+        // irle bien a ella.
+        guard seHaLeido else { return }
         await sincronizarProgramador()
     }
 
@@ -205,27 +218,73 @@ public final class ModeloDeAlarmas {
 
     /// Deja programado exactamente lo que tiene que sonar, ni mas ni menos.
     ///
-    /// Reprograma todo lo encendido en vez de solo lo que ha cambiado: no hay
-    /// forma de preguntarle al sistema **a que hora** tiene puesta una alarma,
-    /// solo si la tiene, asi que editar la hora de una alarma ya programada no
-    /// se distingue de no haberla tocado. Programar encima es idempotente en las
-    /// dos implementaciones.
+    /// Reprograma todo lo encendido en vez de solo lo que ha cambiado: desde
+    /// aqui no se distingue editar la hora de una alarma ya programada de no
+    /// haberla tocado. Programar encima **tiene** que ser idempotente, y lo es:
+    /// `SystemAlarmScheduler` se guarda que le pidio al sistema de cada alarma
+    /// y no vuelve a tocarla si no ha cambiado nada. Tuvo que aprender a serlo
+    /// —AlarmKit falla al programar sobre un id que ya tiene— y ese era el
+    /// issue #36.
+    ///
+    /// **Nunca corren dos a la vez.** Cada sincronizacion espera a la anterior.
+    /// Aqui entran cuatro caminos distintos —abrir la pantalla, guardar desde la
+    /// hoja, el interruptor de una fila y borrar— y cada uno desde su propia
+    /// `Task`; sin la cola se solapaban en cada `await` y salian dos fallos que
+    /// encajan con lo que se veia en pantalla:
+    ///
+    /// - Dos `schedule` del mismo `id` en vuelo a la vez. AlarmKit contesta a
+    ///   una de las dos con un `NSError` pelado —el `com.apple.AlarmKit code=0`
+    ///   sin descripcion— mientras la otra deja la alarma puesta: error en
+    ///   pantalla y alarma que suena igual.
+    /// - Una sincronizacion que empezo antes reprogramando la alarma que la de
+    ///   despues acababa de cancelar, porque su lista de "lo que debe sonar" la
+    ///   calculo antes de que el usuario tocara el interruptor.
+    ///
+    /// De paso, la cola la sostiene una `Task` sin padre: la de la pantalla se
+    /// cancela al cambiar de pestana, y con ella se quedaba a medias la
+    /// programacion.
     private func sincronizarProgramador() async {
+        let anterior = sincronizacionEnCurso
+        let mia = Task { @MainActor [weak self] in
+            await anterior?.value
+            await self?.sincronizarAhora()
+        }
+        sincronizacionEnCurso = mia
+        await mia.value
+    }
+
+    /// La sincronizacion de verdad. Solo la llama la cola de arriba.
+    private func sincronizarAhora() async {
         let deben = efectivas.filter(\.isEnabled)
         let idsQueDeben = Set(deben.map(\.id))
 
-        do {
-            let puestas = try await programador.scheduledAlarmIDs()
+        // Limpiar lo que sobra va primero, pero es lo accesorio: si el sistema
+        // no deja consultar lo que tiene puesto no se sabe que cancelar, y eso
+        // **no** es motivo para dejar de programar. De los dos fallos, el caro
+        // esta clarisimo: una alarma de mas suena un dia que no tocaba; una
+        // alarma de menos es no despertarse.
+        if let puestas = try? await programador.scheduledAlarmIDs() {
             for id in puestas.subtracting(idsQueDeben) {
-                try await programador.cancel(alarmID: id)
+                try? await programador.cancel(alarmID: id)
             }
-            for alarma in deben {
-                try await programador.schedule(alarma)
-            }
-            fallo = nil
-        } catch {
-            fallo = mensaje(de: error, siNo: "La alarma esta guardada, pero el sistema no la ha aceptado: puede que no suene.")
         }
+
+        // Se intentan todas aunque una falle. Antes esto era un `try` dentro de
+        // un solo `do`: el primer tropiezo —incluso el de *consultar*, que no
+        // programa nada— se llevaba por delante el resto del bucle y dejaba sin
+        // programar alarmas que no tenian ningun problema.
+        var primerFallo: String?
+        for alarma in deben {
+            do {
+                try await programador.schedule(alarma)
+            } catch {
+                primerFallo = primerFallo ?? mensaje(
+                    de: error,
+                    siNo: "La alarma esta guardada, pero el sistema no la ha aceptado: puede que no suene."
+                )
+            }
+        }
+        fallo = primerFallo
     }
 
     /// El texto de `AlarmSchedulerError` si lo es, y si no el de repuesto. Esos
