@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Deslizar una fila hacia la izquierda para sacar la papelera.
 ///
@@ -17,8 +20,13 @@ import SwiftUI
 /// Lo que hay es un `ScrollView` horizontal por fila, con la papelera de
 /// segunda. El reparto entre "esto es vertical, es de la pantalla" y "esto es
 /// horizontal, es de la fila" lo hacen dos scrolls anidados, que es justo lo que
-/// el sistema sabe hacer bien y no hay que reinventar. De regalo vienen el
-/// rebote del final y la deceleracion de verdad.
+/// el sistema sabe hacer bien y no hay que reinventar. De regalo viene la
+/// deceleracion de verdad.
+///
+/// El rebote si se quita, con `SinRebote`. Lo trae puesto el `ScrollView` y
+/// aqui sobra: pasado el ancho del cajon la fila seguia corriendose, el rojo se
+/// despegaba del canto derecho y asomaba el fondo por detras. El arrastre tiene
+/// que topar justo donde acaba de salir la papelera.
 ///
 /// Sobre el relieve: el `ScrollView` recorta lo que lleva dentro, asi que la
 /// sombra de la fila **no puede ir dentro**. Va fuera, con `relieve`, que por eso
@@ -83,6 +91,10 @@ public struct DeslizarParaBorrar<Contenido: View>: View {
 
                 papelera
             }
+            // Dentro del contenido a proposito: `SinRebote` se cuelga del
+            // `ScrollView` que tenga mas cerca por encima, y desde fuera ese
+            // seria el vertical de la pantalla.
+            .background { SinRebote() }
         }
         .scrollIndicators(.never)
         .scrollTargetBehavior(AjusteDelCajon())
@@ -157,6 +169,67 @@ private struct AjusteDelCajon: ScrollTargetBehavior {
         target.rect.origin.x = pasadoElUmbral ? MedidasDelCajon.ancho : 0
     }
 }
+
+/// Le quita el rebote al `ScrollView` de la fila.
+///
+/// SwiftUI no deja apagarlo por eje: `scrollBounceBehavior` decide segun el
+/// tamano, y aqui el contenido siempre es mas ancho que la fila —la papelera
+/// esta ahi para eso—, asi que rebota siempre. Hay que bajar al `UIScrollView`.
+///
+/// Fuera de iOS no hay `UIScrollView` ni hay dedo, y esto se queda en nada.
+private struct SinRebote: View {
+    var body: some View {
+        #if canImport(UIKit)
+        EnganchePlano()
+        #else
+        Color.clear
+        #endif
+    }
+}
+
+#if canImport(UIKit)
+
+/// Una vista vacia que solo sirve para llegar al `UIScrollView` que la contiene.
+private struct EnganchePlano: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView { Enganche() }
+    func updateUIView(_ vista: UIView, context: Context) {}
+
+    private final class Enganche: UIView {
+        /// Debil: el scroll es el padre, y guardarlo fuerte seria un ciclo.
+        private weak var scroll: UIScrollView?
+
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            // No es un objetivo tocable, es un cable. Que no se coma nada.
+            isUserInteractionEnabled = false
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError("sin storyboards") }
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            var vista: UIView? = superview
+            while let actual = vista, scroll == nil {
+                scroll = actual as? UIScrollView
+                vista = actual.superview
+            }
+            apagarElRebote()
+        }
+
+        /// Se repite en cada recolocacion porque UIKit puede volver a encenderlo
+        /// al reconstruir la fila. Es asignar un booleano.
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            apagarElRebote()
+        }
+
+        private func apagarElRebote() {
+            scroll?.bounces = false
+        }
+    }
+}
+#endif
 
 #Preview("Deslizar para borrar") {
     MuestraDeDeslizar().preferredColorScheme(.dark)
