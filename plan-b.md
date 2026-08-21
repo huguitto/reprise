@@ -8,10 +8,14 @@ seccion "El flujo real, con la limitacion de iOS".
 
 ## Tu situacion de partida es incomoda: asumela
 
-El entitlement de AlarmKit lo aprueba Apple caso por caso y **todavia no lo
-tenemos**. Hasta que llegue no puedes probar nada de verdad. Trabaja contra el
+> **Corregido el 21/08/2026.** Lo de abajo era falso y costo caro: nadie habia
+> intentado usar AlarmKit. No hace falta ningun entitlement. Se probo contra el
+> iPhone y **sono**. Ya no hay que trabajar a ciegas.
+
+~~El entitlement de AlarmKit lo aprueba Apple caso por caso y **todavia no lo
+tenemos**. Hasta que llegue no puedes probar nada de verdad.~~ Trabaja contra el
 protocolo `AlarmScheduling` y deja `PreviewAlarmScheduler` funcionando para que
-los otros tres agentes puedan seguir. **No bloquees a nadie esperando a Apple.**
+los otros tres agentes puedan seguir.
 
 ## Lo que tienes que hacer
 

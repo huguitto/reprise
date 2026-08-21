@@ -7,8 +7,8 @@ que el reto este hecho.
 
 | Pieza | Para que |
 |---|---|
-| `SystemAlarmScheduler` | La implementacion real sobre AlarmKit. **Sin probar: falta el entitlement.** |
-| `PreviewAlarmScheduler` | La que usa todo el mundo hasta que llegue. En memoria, sin AlarmKit. |
+| `SystemAlarmScheduler` | La implementacion real sobre AlarmKit. **Es la que monta la app, y suena.** |
+| `PreviewAlarmScheduler` | En memoria, sin AlarmKit. Para `#Preview`, tests y simulador. |
 | `AlarmFirePlan` | Hora y dias ya validados, sin tipos de AlarmKit. Es lo que se puede probar en el host. |
 | `ToneCatalog` | El catalogo de tonos y su respaldo cuando algo falta. |
 | `OpenChallengeIntent` | Lo que hace el boton secundario de la alerta: abrir la app con el reto. |
@@ -18,12 +18,15 @@ que el reto este hecho.
 
 ## Como se monta en la app
 
-**1. Elegir programador.** Mientras no tengamos el entitlement, `PreviewAlarmScheduler`
-en todas partes:
+**1. Elegir programador.** En el dispositivo, el de verdad:
 
 ```swift
-let programador: any AlarmScheduling = PreviewAlarmScheduler()
+let programador: any AlarmScheduling = SystemAlarmScheduler()
 ```
+
+El de preview sigue siendo el que quieres en los `#Preview`, en los tests y en
+el simulador, donde AlarmKit no tiene con que sonar. No es un sustituto a la
+espera de nada: es la otra mitad del protocolo.
 
 **2. Registrar el App Intent.** AppIntents no descubre por su cuenta los intents
 que viven en un paquete. En el target de la app hace falta una declaracion, o el
@@ -75,10 +78,21 @@ despertador.
 faltan, tonos que pasan de 30 s— y esta pensado para un test en dispositivo en
 cuanto haya audio de verdad.
 
-## Lo que no se ha podido probar
+## Lo probado en el iPhone, y lo que sigue sin verse
 
-Nada de `SystemAlarmScheduler` se ha visto funcionar: AlarmKit necesita un
-entitlement que Apple aprueba caso por caso y todavia no lo tenemos. Compila
-contra el SDK de iOS 26 y la traduccion de dias y horas esta cubierta por tests
-en el host, pero que la alarma suene de verdad con la app cerrada solo se sabra
-en el iPhone.
+**21/08/2026, iPhone 15 Pro Max.** Aqui ponia que nada de `SystemAlarmScheduler`
+se habia visto funcionar porque faltaba un entitlement que Apple aprueba caso por
+caso. Era falso: no existe tal entitlement. La app, firmada con la cuenta de
+desarrollador **gratuita**, se instalo, pidio el permiso de alarmas por
+`AlarmManager.requestAuthorization()`, se programo una alarma y **sono**. Los
+entitlements firmados son tres y ninguno es de AlarmKit; lo unico necesario es
+`NSAlarmKitUsageDescription`, que ya estaba en el Info.plist.
+
+Lo que ese ensayo **no** cubrio, y sigue sin verse funcionar:
+
+- El boton secundario de la alerta abriendo el reto (`OpenChallengeIntent` →
+  `ChallengeInbox`). Esta escrito y registrado, no observado.
+- El sonido en bucle que sostiene la app durante el reto (`ChallengeSound`) y
+  que no se calla hasta completarlo.
+- Los tonos del bundle: solo se ha oido el sonido por defecto del sistema.
+- Las repeticiones por dias de la semana a lo largo de varios dias.

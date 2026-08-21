@@ -117,16 +117,22 @@ struct RootView: View {
 
     /// Quien pone las alarmas en el sistema.
     ///
-    /// Es `PreviewAlarmScheduler` y no `SystemAlarmScheduler` **a proposito**:
-    /// AlarmKit exige un entitlement que Apple aprueba caso por caso y que
-    /// todavia no tenemos. Con el de preview la app entera funciona —se ponen,
-    /// se apagan y se borran alarmas, y el modelo lleva la cuenta de cuales
-    /// estan puestas— pero **no suena nada a la hora**: no hay alarma de verdad
-    /// en el sistema.
+    /// Hasta el 21/08/2026 esto era `PreviewAlarmScheduler`, y llevaba escrito
+    /// que era a proposito porque AlarmKit exigia un entitlement que Apple
+    /// aprueba caso por caso. **No existe tal entitlement**, y nadie lo habia
+    /// comprobado nunca: la app se monto entera sobre un programador que no
+    /// suena por un bloqueante que no era. Probado contra el iPhone con la
+    /// cuenta gratuita, con tres entitlements firmados y ninguno de AlarmKit:
+    /// suena.
     ///
-    /// El dia que llegue el entitlement esto es una linea: `SystemAlarmScheduler()`.
+    /// En el simulador no hay alarma que dar, asi que ahi sigue entrando el de
+    /// preview. Es la unica diferencia entre los dos sitios.
     private static func programador() -> any AlarmScheduling {
+        #if targetEnvironment(simulator)
         PreviewAlarmScheduler()
+        #else
+        SystemAlarmScheduler()
+        #endif
     }
 }
 
