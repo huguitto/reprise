@@ -6,9 +6,12 @@ import AlarmScheduler
 /// Lista de alarmas. Es la pantalla que se ve de dia, con calma, y por eso es
 /// donde el neumorfismo puede lucirse.
 ///
-/// La proxima alarma sale como objeto — la esfera de la referencia — y el resto
-/// como filas. Una sola alarma grande y las demas pequenas: la que importa a
-/// las once de la noche es la de manana.
+/// Las alarmas encendidas salen como objeto — la esfera de la referencia — y
+/// todas las guardadas como filas. Un disco grande arriba y la lista pequena
+/// debajo: lo que importa a las once de la noche es a que hora suena manana.
+///
+/// Cuando hay mas de una encendida, el disco se pasa con el dedo. Ver
+/// `CarruselDeAlarmas`.
 public struct PantallaListaDeAlarmas: View {
     /// Las alarmas de verdad. Quien lo construye decide contra que disco
     /// escribe: la app le pasa `Persistence`, los `#Preview` uno de memoria.
@@ -54,9 +57,10 @@ public struct PantallaListaDeAlarmas: View {
     /// seria prometer cuatro despertares que no van a existir.
     private var alarmas: [Alarm] { modelo.efectivas }
 
-    /// La que suena antes. **No** es la primera de la lista: la lista va por
-    /// fecha de creacion y esta va por hora. Lo decide el modelo.
-    private var proxima: Alarm? { modelo.proxima }
+    /// Las que van a sonar, por hora. **No** es el orden de la lista, que va
+    /// por fecha de creacion. Lo decide el modelo.
+    private var activas: [Alarm] { modelo.activas }
+
 
     public var body: some View {
         ScrollView {
@@ -67,21 +71,13 @@ public struct PantallaListaDeAlarmas: View {
                         .accessibilityLabel(Text("Nueva alarma"))
                 }
 
-                if let proxima {
-                    VStack(spacing: Espacio.normal) {
-                        EsferaDeReloj(hora: proxima.hour, minuto: proxima.minute, diametro: 250)
-                        VStack(spacing: Espacio.corto) {
-                            Text(proxima.label.isEmpty ? "Sin etiqueta" : proxima.label)
-                                .font(Tipografia.cuerpoFuerte)
-                                .foregroundStyle(Paleta.texto)
-                            HStack(spacing: Espacio.corto) {
-                                Pastilla(proxima.weekdays.resumen)
-                                Pastilla(proxima.challenge.nombre, icono: proxima.challenge.simbolo)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Espacio.corto)
+                if !activas.isEmpty {
+                    // Con una sola alarma esto es la esfera de siempre. Con
+                    // varias se arrastra de una a otra, y los puntos de su pie
+                    // son lo que cuenta de un vistazo que hay mas de una
+                    // puesta. Ver `CarruselDeAlarmas`.
+                    CarruselDeAlarmas(alarmas: activas, empezandoPor: modelo.proxima?.id)
+                        .padding(.top, Espacio.corto)
                 } else if !modelo.cargando {
                     // Sin alarma que ensenar, la esfera se queda igual pero
                     // cuenta la hora que es. El sitio no se deja en blanco: es
@@ -215,34 +211,20 @@ public struct PantallaListaDeAlarmas: View {
         modelo.alarmas.first { $0.id == alarma.id } ?? alarma
     }
 
-    /// Cuando suena la proxima, de verdad.
+    /// La segunda linea del titular.
     ///
-    /// Ponia "Mañana a las 7:30" pasara lo que pasara: a las seis de la manana,
-    /// con la alarma puesta a las siete de ese mismo dia, la app decia que
-    /// sonaba manana. Quien lo cuenta ahora es `Alarm.proximaVez`, que sabe de
-    /// dias de la semana y esta probado en `AlarmCore`.
+    /// Con una sola alarma dice cuando suena. Con varias dice **cuantas hay**,
+    /// y no sigue al carrusel: la frase larga —"El domingo a las 9:00"— ocupa
+    /// dos lineas donde la corta ocupa una, asi que cambiarla al pasar de
+    /// alarma empujaba la esfera treinta puntos arriba y abajo, y la pantalla
+    /// entera daba un tiron en cada pase. Cada diapositiva dice su hora en su
+    /// propio pie, que es donde no molesta. Aqui arriba, ademas, el numero es
+    /// lo que avisa de que hay mas de una antes incluso de tocar nada.
     private var subtituloDeCabecera: String {
         if modelo.cargando { return "Un momento" }
-        guard let proxima else { return "Ninguna puesta" }
-        guard let cuando = proxima.proximaVez() else {
-            // No deberia pasar nunca. Antes que inventarse un dia, la hora sola.
-            return String(format: "A las %d:%02d", proxima.hour, proxima.minute)
-        }
-        return "\(Self.cuandoSuena(cuando)) a las \(String(format: "%d:%02d", proxima.hour, proxima.minute))"
-    }
-
-    /// "Hoy", "Mañana" o el nombre del dia. Mas alla de una semana no hace
-    /// falta mas detalle: el dia de la semana ya es unico.
-    static func cuandoSuena(_ fecha: Date, desde ahora: Date = Date(), calendario: Calendar = .current) -> String {
-        let hoy = calendario.startOfDay(for: ahora)
-        let dia = calendario.startOfDay(for: fecha)
-        if dia == hoy { return "Hoy" }
-        if dia == calendario.date(byAdding: .day, value: 1, to: hoy) { return "Mañana" }
-        let formato = DateFormatter()
-        formato.locale = Locale(identifier: "es_ES")
-        formato.dateFormat = "EEEE"
-        // "El sábado", no "sábado": la cabecera es una frase, no una etiqueta.
-        return "El \(formato.string(from: fecha))"
+        guard let proxima = modelo.proxima else { return "Ninguna puesta" }
+        guard activas.count == 1 else { return "\(activas.count) puestas" }
+        return proxima.cuandoSuenaEnPalabras()
     }
 }
 
@@ -349,6 +331,21 @@ struct TiraDeRacha: View {
 
 #Preview("Lista de alarmas") {
     PantallaListaDeAlarmas().preferredColorScheme(.dark)
+}
+
+/// Tres alarmas encendidas: el estado que hace girar la esfera. Es el que hay
+/// que mirar para ver el pase, porque los datos de mentira de siempre solo
+/// tienen dos y con dos el ida y vuelta parece un parpadeo.
+#Preview("Varias alarmas activas") {
+    PantallaListaDeAlarmas(
+        modelo: ModeloDeAlarmas(
+            repositorio: RepositorioEnMemoria(DatosDeMentira.alarmasTodasEncendidas),
+            programador: PreviewAlarmScheduler(),
+            plan: .deMentira,
+            alarmasIniciales: DatosDeMentira.alarmasTodasEncendidas
+        )
+    )
+    .preferredColorScheme(.dark)
 }
 
 /// La app recien instalada, sin nada guardado. Es el estado que menos se mira

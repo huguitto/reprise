@@ -51,6 +51,19 @@ public enum Relieve: Sendable, Hashable {
         case .alto: 20
         }
     }
+
+    /// Hasta donde llega la sombra mas alla del borde de la pieza.
+    ///
+    /// Hace falta cada vez que una pieza en relieve se mete dentro de algo que
+    /// recorta —un `ScrollView`, una mascara—: recortando a ras del marco, la
+    /// sombra se corta en seco y la pieza se queda plana. Y no se nota como
+    /// "falta sombra", se nota como una raya recta donde no hay nada.
+    ///
+    /// Medido sobre una captura del disco de la lista (relieve `.alto`): desde
+    /// el borde, la sombra tarda **35 puntos** en llegar al color del fondo.
+    /// La cuenta de aqui da 50 para ese caso, que sobra a proposito: pasarse
+    /// con un recorte no cuesta nada y quedarse corto se ve.
+    public var alcance: CGFloat { desplazamiento + difuminado * 2 }
 }
 
 /// Cuanto se hunde una pieza por debajo del plano del fondo.

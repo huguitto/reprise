@@ -93,6 +93,28 @@ public final class ModeloDeAlarmas {
         }
     }
 
+    /// Todas las que van a sonar, puestas en fila para el carrusel de la esfera.
+    ///
+    /// Van **por hora del reloj**, y eso es distinto de `proxima`, que ordena
+    /// por la fecha real de disparo y por eso sabe que una alarma pendiente de
+    /// hoy gana a otra mas temprana de manana. Aqui la fecha real no vale: el
+    /// orden de un carrusel tiene que quedarse quieto. Con `proximaVez()` la
+    /// fila se reordenaria sola al cruzar la medianoche o al marcar un dia de
+    /// la semana, y la alarma que se estaba mirando se iria de sitio sin que
+    /// nadie la toque. Por hora del reloj se lee ademas como una lista de
+    /// horas, que es lo que el usuario cree estar mirando.
+    ///
+    /// Cual sale la primera **en pantalla** no lo decide este orden: la
+    /// pantalla abre el carrusel por `proxima`. Ver `CarruselDeAlarmas`.
+    ///
+    /// El `id` al final del criterio es solo para que dos alarmas a la misma
+    /// hora no se intercambien entre repintados.
+    public var activas: [Alarm] {
+        efectivas.filter(\.isEnabled).sorted {
+            ($0.hour, $0.minute, $0.id.uuidString) < ($1.hour, $1.minute, $1.id.uuidString)
+        }
+    }
+
     /// Si el plan esta recortando algo de lo guardado. La lista lo dice en vez
     /// de ensenar una alarma apagada sin explicacion.
     public var elPlanRecortaAlgo: Bool { efectivas != alarmas }

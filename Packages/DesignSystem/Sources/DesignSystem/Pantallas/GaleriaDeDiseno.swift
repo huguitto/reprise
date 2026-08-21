@@ -70,6 +70,8 @@ public struct GaleriaDeDiseno: View {
                         Raya()
                         enlace("Esfera de reloj", "clock") { MuestraDeEsfera() }
                         Raya()
+                        enlace("Carrusel de alarmas", "rectangle.stack") { MuestraDeCarrusel() }
+                        Raya()
                         enlace("Dial de apagado", "power") { MuestraDeDial() }
                         Raya()
                         enlace("Anillo de progreso", "circle.dashed") { MuestraDeAnillo() }
