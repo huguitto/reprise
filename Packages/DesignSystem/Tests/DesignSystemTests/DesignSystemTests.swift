@@ -2,8 +2,9 @@ import Testing
 import AlarmCore
 @testable import DesignSystem
 
-// En DesignSystem los tests solo se ponen donde aportan, que aqui son dos
-// sitios: la tabla de la fuente de puntos y el resumen de dias.
+// En DesignSystem los tests solo se ponen donde aportan, que aqui son tres
+// sitios: la tabla de la fuente de puntos, el resumen de dias y la geometria de
+// la esfera (esa esta en EsferaDeRelojTests).
 //
 // La fuente es una tabla de cadenas escritas a mano. Una fila con un caracter
 // de menos no rompe la compilacion: desplaza medio glifo y sale un digito
