@@ -12,10 +12,17 @@ import AlarmCore
 /// ensenando las insignias de una racha de 12. Ya pasaba.
 public struct PantallaRacha: View {
     private let datos: DatosDeRacha
+    /// Esta pantalla no usa el plan para nada suyo: solo se lo pasa a Ajustes,
+    /// que es de donde cuelga. Va aparte de `datos.plan` porque son dos cosas
+    /// distintas: `datos.plan` es el plan **leido** para pintar, y esto es el
+    /// modelo con el que se **cambia**. Suelto (`nil`) Ajustes sale como gratis,
+    /// que es lo que quieren la galeria y los `#Preview`.
+    private let plan: ModeloDelPlan?
     @State private var mostrarAjustes = false
 
-    public init(datos: DatosDeRacha = .deMentira) {
+    public init(datos: DatosDeRacha = .deMentira, plan: ModeloDelPlan? = nil) {
         self.datos = datos
+        self.plan = plan
     }
 
     private var racha: Int { datos.racha }
@@ -40,7 +47,7 @@ public struct PantallaRacha: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
-        .sheet(isPresented: $mostrarAjustes) { PantallaAjustes(esPro: datos.plan.esPro) }
+        .sheet(isPresented: $mostrarAjustes) { PantallaAjustes(plan: plan) }
     }
 
     // MARK: - Piezas

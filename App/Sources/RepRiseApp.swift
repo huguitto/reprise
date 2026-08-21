@@ -1,5 +1,6 @@
 import SwiftUI
 import AlarmCore
+import AlarmScheduler
 import DesignSystem
 import Persistence
 
@@ -15,14 +16,9 @@ struct RepRiseApp: App {
 /// La raiz de la app: la navegacion de tres secciones, siempre en oscuro.
 /// Exactamente lo que se instala en el telefono de un usuario.
 ///
-/// **La racha ya no es de mentira.** Sale de SwiftData, pasa por `AlarmCore` y
-/// se pinta: lo que se ve en la pantalla de racha es lo que hay en el disco.
-/// Las alarmas y el ranking siguen siendo estaticos —el programador de alarmas y
-/// la red van en otras ramas— y por eso la lista de alarmas todavia no guarda
-/// nada. Ojo con lo que eso implica: hasta que guarde, `AlarmRepository.all()`
-/// devuelve vacio y el barrido de dias perdidos no tiene calendario contra el
-/// que comparar. El codigo esta puesto y probado; le falta que le lleguen
-/// alarmas de verdad.
+/// **Ni la racha ni las alarmas son ya de mentira.** Las dos salen de SwiftData,
+/// pasan por `AlarmCore` y se pintan. El ranking sigue siendo estatico, que la
+/// red va en otra rama.
 ///
 /// Falta una cosa que no se puede montar desde aqui: **el reto no se alcanza**.
 /// No es un olvido, es que no se visita a voluntad — aparece cuando suena la
@@ -36,12 +32,25 @@ struct RepRiseApp: App {
 /// otra vez —hara falta, porque el detector se cerro con dos sesiones de las
 /// cinco que pedia el encargo.
 struct RootView: View {
-    /// El almacen se monta una sola vez, al arrancar. Si no se puede abrir —el
-    /// disco lleno, una migracion que revienta— la app no puede ensenar ninguna
-    /// racha, y lo dice en vez de pintar un cero: un cero es indistinguible de
-    /// haber perdido una racha de 200 dias.
-    @State private var modelo: ModeloDeRacha?
+    /// El almacen se monta una sola vez, al arrancar, y de el cuelgan **las dos**
+    /// cosas que escriben en disco. No es una preferencia de estilo:
+    /// `Persistence.contenedor` construye un `ModelContainer` nuevo en cada
+    /// llamada, y dos contenedores sobre el mismo fichero son dos verdades
+    /// distintas del mismo dato.
+    ///
+    /// Si no se puede abrir —el disco lleno, una migracion que revienta— la app
+    /// no puede ensenar ninguna racha, y lo dice en vez de pintar un cero: un
+    /// cero es indistinguible de haber perdido una racha de 200 dias. Y tampoco
+    /// finge guardar alarmas: mas vale una pantalla fea que alguien que se va a
+    /// dormir con una alarma que no existe.
+    @State private var racha: ModeloDeRacha?
+    @State private var alarmas: ModeloDeAlarmas?
     @State private var falloAlAbrir: String?
+
+    /// El plan contratado. No necesita disco —vive en `UserDefaults` mientras no
+    /// haya StoreKit— asi que se monta antes que nada y sobrevive al fallo del
+    /// almacen.
+    @State private var plan = ModeloDelPlan()
 
     @Environment(\.scenePhase) private var fase
 
@@ -56,18 +65,28 @@ struct RootView: View {
             // Al volver del fondo se vuelve a cobrar: la app pudo pasarse la
             // noche abierta y el dia ya no es el mismo.
             .onChange(of: fase) { _, nueva in
-                guard nueva == .active, let modelo else { return }
-                Task { await modelo.arrancar() }
+                guard nueva == .active, let racha else { return }
+                Task { await racha.arrancar() }
+            }
+            // El plan se puede cambiar sin salir de la app —el muro de pago y
+            // la fila de Ajustes— y la racha lo lleva fotografiado desde que
+            // arranco. Sin esto, quien contrata Pro sigue viendo "las vidas son
+            // de Pro" con los corazones vacios hasta que cierra y vuelve a
+            // abrir. Es `recargar` y no `arrancar` a proposito: cambiar de plan
+            // repinta lo que se ensena, no vuelve a cobrar los dias pasados.
+            .onChange(of: plan.plan) { _, _ in
+                guard let racha else { return }
+                Task { await racha.recargar() }
             }
     }
 
     @ViewBuilder
     private var contenido: some View {
-        if let modelo {
-            if let fallo = modelo.fallo {
+        if let racha, let alarmas {
+            if let fallo = racha.fallo {
                 AvisoDeFallo(texto: fallo)
             } else {
-                NavegacionPrincipal(racha: modelo.datos)
+                NavegacionPrincipal(racha: racha.datos, modeloDeAlarmas: alarmas, plan: plan)
             }
         } else if let falloAlAbrir {
             AvisoDeFallo(texto: falloAlAbrir)
@@ -80,14 +99,34 @@ struct RootView: View {
     }
 
     private func abrir() async {
-        guard modelo == nil, falloAlAbrir == nil else { return }
+        guard racha == nil, falloAlAbrir == nil else { return }
         do {
-            let nuevo = ModeloDeRacha(almacen: try Persistence.almacen())
-            modelo = nuevo
-            await nuevo.arrancar()
+            let almacen = try Persistence.almacen()
+            alarmas = ModeloDeAlarmas(
+                repositorio: almacen,
+                programador: Self.programador(),
+                plan: plan
+            )
+            let nueva = ModeloDeRacha(almacen: almacen)
+            racha = nueva
+            await nueva.arrancar()
         } catch {
             falloAlAbrir = "No se ha podido abrir tu racha."
         }
+    }
+
+    /// Quien pone las alarmas en el sistema.
+    ///
+    /// Es `PreviewAlarmScheduler` y no `SystemAlarmScheduler` **a proposito**:
+    /// AlarmKit exige un entitlement que Apple aprueba caso por caso y que
+    /// todavia no tenemos. Con el de preview la app entera funciona —se ponen,
+    /// se apagan y se borran alarmas, y el modelo lleva la cuenta de cuales
+    /// estan puestas— pero **no suena nada a la hora**: no hay alarma de verdad
+    /// en el sistema.
+    ///
+    /// El dia que llegue el entitlement esto es una linea: `SystemAlarmScheduler()`.
+    private static func programador() -> any AlarmScheduling {
+        PreviewAlarmScheduler()
     }
 }
 

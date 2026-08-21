@@ -9,8 +9,8 @@ import SwiftUI
 ///   - **El reto** no se visita: aparece cuando suena la alarma, y eso lo monta
 ///     AlarmScheduler. Hasta que exista, se mira desde la galeria.
 ///
-/// La racha ya no es estatica: entra por `racha` y la monta la app leyendo del
-/// disco. Las alarmas y el ranking siguen con datos inventados.
+/// Ni la racha ni las alarmas son ya estaticas: las dos entran por parametro y
+/// las monta la app leyendo del mismo disco. El ranking sigue inventado.
 public struct NavegacionPrincipal: View {
     @State private var seccion: Seccion
 
@@ -18,12 +18,27 @@ public struct NavegacionPrincipal: View {
     /// `#Preview` y la galeria de diseno sigan funcionando sueltos.
     private let racha: DatosDeRacha
 
+    /// El modelo vive aqui y no en la lista para que cambiar de seccion y
+    /// volver no relea el disco ni pierda lo que hubiera en pantalla.
+    @State private var modeloDeAlarmas: ModeloDeAlarmas
+    @State private var plan: ModeloDelPlan
+
     /// La seccion de arranque es un parametro para poder mirar cada una por
     /// separado en los `#Preview` y en las capturas. La app siempre entra por
     /// alarmas: es lo que se viene a hacer.
-    public init(seccion: Seccion = .alarmas, racha: DatosDeRacha = .deMentira) {
+    ///
+    /// `modeloDeAlarmas` a `nil` = alarmas de mentira en memoria, que es lo que
+    /// quieren los `#Preview`. La app pasa el que escribe en disco.
+    public init(
+        seccion: Seccion = .alarmas,
+        racha: DatosDeRacha = .deMentira,
+        modeloDeAlarmas: ModeloDeAlarmas? = nil,
+        plan: ModeloDelPlan? = nil
+    ) {
         self._seccion = State(initialValue: seccion)
         self.racha = racha
+        self._modeloDeAlarmas = State(initialValue: modeloDeAlarmas ?? .deMentira())
+        self._plan = State(initialValue: plan ?? .deMentira)
     }
 
     public var body: some View {
@@ -41,8 +56,14 @@ public struct NavegacionPrincipal: View {
     @ViewBuilder
     private var contenido: some View {
         switch seccion {
-        case .alarmas: PantallaListaDeAlarmas(alIrARacha: { seccion = .racha }, racha: racha)
-        case .racha: PantallaRacha(datos: racha)
+        case .alarmas:
+            PantallaListaDeAlarmas(
+                modelo: modeloDeAlarmas,
+                plan: plan,
+                racha: racha,
+                alIrARacha: { seccion = .racha }
+            )
+        case .racha: PantallaRacha(datos: racha, plan: plan)
         case .ranking: PantallaRanking()
         }
     }

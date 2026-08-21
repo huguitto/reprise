@@ -16,6 +16,12 @@ import AlarmCore
 struct FuenteDelPlan: Sendable {
     /// Clave con nombre feo a proposito: que se vea que es provisional al
     /// mirar el fichero de preferencias.
+    ///
+    /// - Important: `DesignSystem.ModeloDelPlan` **escribe en esta misma clave**.
+    ///   Es quien la cambia cuando el usuario contrata Pro desde el muro de
+    ///   pago; esto solo lee. Si alguien toca el nombre aqui, hay que tocarlo
+    ///   alli: no hay compilador que lo cace, porque `DesignSystem` no ve esta
+    ///   capa.
     static let clave = "plan-provisional-sin-storekit"
 
     /// Se guarda el nombre del contenedor y no el `UserDefaults`, que no es
@@ -39,8 +45,9 @@ struct FuenteDelPlan: Sendable {
         return plan
     }
 
-    /// Solo para poder mirar la pantalla con los dos planes mientras no hay
-    /// compras. No hay boton en la app que llame aqui: se pone a mano.
+    /// Para poder mirar la pantalla con los dos planes desde un test o desde la
+    /// linea de comandos. En la app quien cambia el plan es `ModeloDelPlan`
+    /// —el muro de pago y la fila de Ajustes—, contra esta misma clave.
     func fijar(_ plan: PlanDeSuscripcion) {
         defaults.set(plan.rawValue, forKey: Self.clave)
     }

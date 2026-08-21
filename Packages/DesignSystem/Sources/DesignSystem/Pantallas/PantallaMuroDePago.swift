@@ -1,4 +1,5 @@
 import SwiftUI
+import AlarmCore
 
 /// Muro de pago.
 ///
@@ -18,7 +19,38 @@ public struct PantallaMuroDePago: View {
     @State private var plan: Plan = .anual
     @Environment(\.dismiss) private var cerrar
 
-    public init() {}
+    /// Por que se ha abierto el muro, si es que se ha abierto por topar con
+    /// algo. `nil` = lo ha abierto el usuario desde Ajustes, sin motivo.
+    ///
+    /// No es lo mismo topar con el limite de alarmas que con la repeticion por
+    /// dias: el usuario venia haciendo una cosa concreta y hay que responderle
+    /// a esa, no soltarle el catalogo entero.
+    private let motivo: RestriccionDelPlan?
+    /// Contratar. `nil` = el boton solo cierra, que es lo que hace en la
+    /// galeria de diseno.
+    private let alContratar: (() -> Void)?
+
+    public init(motivo: RestriccionDelPlan? = nil, alContratar: (() -> Void)? = nil) {
+        self.motivo = motivo
+        self.alContratar = alContratar
+    }
+
+    /// La frase de arriba, la que responde a lo que el usuario acababa de
+    /// intentar. Los limites en numero salen de `PlanDeSuscripcion`, no
+    /// escritos a mano: si manana cambia el precio del plan gratis, este texto
+    /// va detras solo.
+    private var explicacionDelMotivo: String? {
+        switch motivo {
+        case let .limiteDeAlarmasActivas(maximo):
+            maximo == 1
+                ? "Con la versión gratis solo puede haber una alarma activa. Esta se guardará cuando tengas Pro."
+                : "Con la versión gratis solo pueden estar activas \(maximo) alarmas a la vez."
+        case .repeticionPorDias:
+            "Repetir una alarma en días concretos es de Pro. Sin ella, la alarma suena una vez y se apaga sola."
+        case nil:
+            nil
+        }
+    }
 
     enum Plan: Hashable {
         case mensual, anual
@@ -33,6 +65,16 @@ public struct PantallaMuroDePago: View {
                     Button { cerrar() } label: { Image(systemName: "xmark") }
                         .buttonStyle(.redondo)
                         .accessibilityLabel(Text("Cerrar"))
+                }
+
+                if let explicacionDelMotivo {
+                    Text(explicacionDelMotivo)
+                        .font(Tipografia.cuerpo)
+                        .foregroundStyle(Paleta.texto)
+                        .padding(Espacio.normal)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .hueco(.sutil, radio: Radio.medio, color: Paleta.acentoTenue)
+                        .padding(.horizontal, Espacio.margen)
                 }
 
                 VStack(alignment: .leading, spacing: Espacio.normal) {
@@ -73,7 +115,11 @@ public struct PantallaMuroDePago: View {
                 .padding(.horizontal, Espacio.margen)
 
                 VStack(spacing: Espacio.medio) {
-                    Button("Empezar") {}.buttonStyle(.principal)
+                    Button("Empezar") {
+                        alContratar?()
+                        cerrar()
+                    }
+                    .buttonStyle(.principal)
                     HStack(spacing: Espacio.amplio) {
                         Button("Restaurar compras") {}.buttonStyle(.textoMenudo)
                         Button("Condiciones") {}.buttonStyle(.textoMenudo)
