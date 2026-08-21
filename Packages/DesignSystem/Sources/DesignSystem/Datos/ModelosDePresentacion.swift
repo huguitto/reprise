@@ -6,8 +6,9 @@ import AlarmCore
 // Aqui ya no hay niveles ni insignias propios: los trae AlarmCore y las
 // pantallas leen los suyos. Lo que queda son dos cosas distintas:
 //
-//   - `PuestoDeRanking`, que sigue siendo de mentira porque el ranking es de
-//     red y todavia no existe. Se cae igual cuando exista.
+//   - `PuestoDeRanking` y `TemporadaDeRanking`, que siguen siendo de mentira
+//     porque el ranking es de red y todavia no existe. Se caen igual cuando
+//     exista.
 //   - Las extensiones de abajo, que NO se caen: son la capa de presentacion
 //     de tipos de dominio. Como se pinta una insignia o como se lee un
 //     desenlace es cosa del diseno, no del motor, y por eso vive de este lado.
@@ -31,6 +32,29 @@ public struct PuestoDeRanking: Identifiable, Hashable, Sendable {
         self.bandera = bandera
         self.racha = racha
         self.eresTu = eresTu
+    }
+}
+
+/// Una temporada de ranking ya cerrada.
+///
+/// El ranking se pone a cero el dia 1 de cada mes, pero lo que hiciste no se
+/// borra: cada mes cerrado deja una linea aqui. Es el "record historico
+/// aparte" de las decisiones de producto.
+public struct TemporadaDeRanking: Identifiable, Hashable, Sendable {
+    public let id: String
+    /// Como se lee el mes: "Julio 2026".
+    public let mes: String
+    public let puestoMundial: Int
+    public let puestoEnPais: Int
+    /// La racha con la que acabo el mes, que es lo que ordenaba el ranking.
+    public let rachaFinal: Int
+
+    public init(id: String, mes: String, puestoMundial: Int, puestoEnPais: Int, rachaFinal: Int) {
+        self.id = id
+        self.mes = mes
+        self.puestoMundial = puestoMundial
+        self.puestoEnPais = puestoEnPais
+        self.rachaFinal = rachaFinal
     }
 }
 
