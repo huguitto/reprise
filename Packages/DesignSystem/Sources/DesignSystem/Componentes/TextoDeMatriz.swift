@@ -74,6 +74,26 @@ public struct HoraDeMatriz: View {
     private let color: Color
     private let colorApagado: Color?
 
+    /// Lo que se separan los dos pisos, en alturas de piso.
+    ///
+    /// `nonisolated` porque las cuentas de la esfera se hacen fuera de la
+    /// pantalla, y un `View` es del actor principal solo por serlo.
+    nonisolated static let separacionEntrePisos: CGFloat = 0.16
+
+    /// Lo que ocupa el bloque entero cuando cada piso mide `altura`.
+    ///
+    /// No es un adorno de la vista: la esfera lo necesita para saber por donde
+    /// no puede pasar la bolita de la hora. Antes ese hueco se calculaba a ojo
+    /// en el otro fichero y la bolita acababa pisando los digitos.
+    nonisolated static func tamano(altura: CGFloat) -> CGSize {
+        let paso = altura / CGFloat(FuenteDePuntos.filas)
+        // Dos cifras, y todos los digitos miden lo mismo de ancho: el bloque no
+        // cambia de tamano con la hora que marque.
+        let columnas = FuenteDePuntos.componer("00").columnas
+        return CGSize(width: paso * CGFloat(columnas),
+                      height: altura * (2 + separacionEntrePisos))
+    }
+
     public init(
         hora: Int,
         minuto: Int,
@@ -89,7 +109,7 @@ public struct HoraDeMatriz: View {
     }
 
     public var body: some View {
-        VStack(spacing: altura * 0.16) {
+        VStack(spacing: altura * Self.separacionEntrePisos) {
             TextoDeMatriz(dosCifras(hora), altura: altura, color: color, colorApagado: colorApagado)
             TextoDeMatriz(dosCifras(minuto), altura: altura, color: color, colorApagado: colorApagado)
         }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 /// Cual de las dos bolitas de la esfera se esta moviendo.
 ///
@@ -24,9 +25,11 @@ public enum Manecilla: Hashable, Sendable, CaseIterable {
 /// hora en matriz de puntos a dos pisos. Es la pieza mas cara de la app en
 /// atencion visual, asi que sale **una sola vez por pantalla**.
 ///
-/// Tiene dos formas de existir:
+/// Tiene tres formas de existir:
 ///
 /// - **De mirar** (`init(hora:minuto:...)`): la de la lista y la presentacion.
+/// - **De mirar la hora que es** (`init(horaQueEs:...)`): la misma pieza, pero
+///   contando el reloj. Sale en la lista cuando no hay ninguna alarma puesta.
 /// - **De tocar** (`init(hora:minuto:manecilla:...)`): la de crear o editar una
 ///   alarma. Ahi las dos bolitas se arrastran y la esfera *es* el selector de
 ///   hora; no hay rueda del sistema en ningun sitio.
@@ -37,6 +40,17 @@ public struct EsferaDeReloj: View {
     private let activa: Bool
     private let diametro: CGFloat
     private let ajustable: Bool
+    private let lectura: Lectura
+
+    /// Que numero esta contando la esfera cuando solo se mira.
+    ///
+    /// No cambia nada de lo que se ve —es el mismo disco, y a proposito— sino
+    /// lo que dice VoiceOver: una alarma puesta a las siete y las siete que son
+    /// ahora mismo se leen igual en la esfera y no significan lo mismo.
+    private enum Lectura {
+        case alarma
+        case horaQueEs
+    }
 
     /// Esfera de mirar. No responde al dedo.
     public init(hora: Int, minuto: Int, activa: Bool = true, diametro: CGFloat = 260) {
@@ -46,6 +60,23 @@ public struct EsferaDeReloj: View {
         self.activa = activa
         self.diametro = diametro
         self.ajustable = false
+        self.lectura = .alarma
+    }
+
+    /// Esfera de mirar la hora que es. Tampoco responde al dedo.
+    ///
+    /// Entra un `Date` y no dos enteros para que no se pueda confundir con la
+    /// de la alarma en el sitio de la llamada: son el mismo disco pintando dos
+    /// cosas distintas.
+    public init(horaQueEs momento: Date, calendario: Calendar = .current, diametro: CGFloat = 260) {
+        let partes = calendario.dateComponents([.hour, .minute], from: momento)
+        self._hora = .constant(partes.hour ?? 0)
+        self._minuto = .constant(partes.minute ?? 0)
+        self._manecilla = .constant(.hora)
+        self.activa = true
+        self.diametro = diametro
+        self.ajustable = false
+        self.lectura = .horaQueEs
     }
 
     /// Esfera de tocar: las bolitas se arrastran para poner la hora.
@@ -64,6 +95,7 @@ public struct EsferaDeReloj: View {
         self.activa = true
         self.diametro = diametro
         self.ajustable = true
+        self.lectura = .alarma
     }
 
     /// Lo que dura un arrastre. `nil` mientras el dedo no esta puesto.
@@ -91,10 +123,17 @@ public struct EsferaDeReloj: View {
         } else {
             esfera
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel(Text(
-                    String(format: activa ? "Alarma puesta a las %d:%02d" : "Alarma apagada, %d:%02d",
-                           hora, minuto)
-                ))
+                .accessibilityLabel(Text(String(format: plantillaHablada, hora, minuto)))
+        }
+    }
+
+    /// Lo que oye VoiceOver en la esfera de mirar. La hora sola no basta: en
+    /// esta pantalla el mismo disco es a veces la alarma de manana y a veces el
+    /// reloj de ahora, y sin decirlo no hay forma de distinguirlo.
+    private var plantillaHablada: String {
+        switch lectura {
+        case .horaQueEs: "Son las %d:%02d"
+        case .alarma: activa ? "Alarma puesta a las %d:%02d" : "Alarma apagada, %d:%02d"
         }
     }
 
@@ -109,7 +148,7 @@ public struct EsferaDeReloj: View {
             HoraDeMatriz(
                 hora: hora,
                 minuto: minuto,
-                altura: diametro * 0.235,
+                altura: diametro * Esferica.alturaDeLosDigitos,
                 color: activa ? Paleta.texto : Paleta.textoTenue
             )
 
@@ -127,6 +166,9 @@ public struct EsferaDeReloj: View {
             // Con radios distintos ademas no se pisan cuando coinciden, que
             // pasa a cada hora en punto y a y media —y es tambien lo que hace
             // que se puedan coger por separado con el dedo.
+            //
+            // Los dos anillos van por fuera del bloque de digitos: ver
+            // `Esferica.cajaDeLosDigitos`.
             marca(.hora)
             marca(.minuto)
         }
@@ -136,16 +178,8 @@ public struct EsferaDeReloj: View {
     // MARK: - Las marcas
 
     /// Angulo de una marca, en radianes desde las doce.
-    ///
-    /// La de la hora salta de hora en hora y **no** avanza con los minutos. A
-    /// las 7:05 sigue clavada en el 7: aqui la esfera se lee de un vistazo
-    /// desde la cama, y una marca a medio camino entre dos numeros es justo lo
-    /// que obliga a mirar dos veces.
     private func angulo(de cual: Manecilla) -> Double {
-        switch cual {
-        case .hora: Double(resto(hora, entre: 12)) / 12 * 2 * .pi
-        case .minuto: Double(resto(minuto, entre: 60)) / 60 * 2 * .pi
-        }
+        Esferica.vueltas(de: cual, hora: hora, minuto: minuto) * 2 * .pi
     }
 
     /// Una marca sobre la esfera. El angulo se mide desde las doce y en el
@@ -235,6 +269,30 @@ public struct EsferaDeReloj: View {
     }
 }
 
+/// La esfera contando la hora que es, y poniendose al dia sola.
+///
+/// Es lo que ocupa el sitio de la esfera en la lista cuando no hay ninguna
+/// alarma puesta. Ese hueco es el centro de la pantalla: vacio, la app parece
+/// rota antes de que nadie llegue a leer que no hay alarmas.
+///
+/// Se redibuja al filo de cada minuto y no cada segundo porque la esfera no
+/// tiene segundero: pintar sesenta veces lo mismo solo gasta bateria. De los
+/// avisos se encarga `TimelineView`, que ademas se calla mientras la pantalla
+/// no se ve.
+public struct RelojDeAhora: View {
+    private let diametro: CGFloat
+
+    public init(diametro: CGFloat = 260) {
+        self.diametro = diametro
+    }
+
+    public var body: some View {
+        TimelineView(.everyMinute) { pauta in
+            EsferaDeReloj(horaQueEs: pauta.date, diametro: diametro)
+        }
+    }
+}
+
 // MARK: - La geometria de la esfera
 
 /// Las cuentas de la esfera, aparte de la vista para poder probarlas.
@@ -249,11 +307,68 @@ enum Esferica {
         let bolita: Double
     }
 
+    /// Cuantos sitios distintos tiene cada manecilla en la esfera.
+    static func posiciones(de cual: Manecilla) -> Int {
+        switch cual {
+        case .hora: 12
+        case .minuto: 60
+        }
+    }
+
+    /// En que vuelta cae una manecilla para una hora dada, de 0 a 1.
+    ///
+    /// La de la hora salta de hora en hora y **no** avanza con los minutos. A
+    /// las 7:05 sigue clavada en el 7: aqui la esfera se lee de un vistazo
+    /// desde la cama, y una marca a medio camino entre dos numeros es justo lo
+    /// que obliga a mirar dos veces. Por eso tiene doce sitios y no doce por
+    /// sesenta, y por eso la holgura con los digitos se puede medir de verdad.
+    static func vueltas(de cual: Manecilla, hora: Int, minuto: Int) -> Double {
+        let posiciones = posiciones(de: cual)
+        return Double(resto(cual == .hora ? hora : minuto, entre: posiciones)) / Double(posiciones)
+    }
+
+    /// El anillo de la hora no se pone a ojo: sale de donde acaban los digitos.
+    ///
+    /// A 0,315 la bolita entraba en la caja de la matriz por las esquinas —a la
+    /// 1, a las 5, a las 7 y a las 11— y se comia el ultimo punto de la cifra.
+    /// Ahora arranca donde termina el bloque y le deja un respiro; el de los
+    /// minutos no se mueve porque por fuera ya no hay sitio: lo espera el canto
+    /// moleteado.
     static func sitio(de cual: Manecilla) -> Sitio {
         switch cual {
-        case .hora: Sitio(radio: 0.315, bolita: 0.042)
+        case .hora: Sitio(radio: 0.345, bolita: 0.042)
         case .minuto: Sitio(radio: 0.415, bolita: 0.030)
         }
+    }
+
+    /// Alto de cada piso de la hora de matriz, en fracciones del diametro.
+    static let alturaDeLosDigitos = 0.235
+
+    /// La caja que ocupan los digitos del centro: medio ancho y media altura en
+    /// fracciones del diametro, medidos desde el centro de la esfera.
+    ///
+    /// Se la pide al propio display en vez de copiar sus medidas, que es lo que
+    /// dejo a la bolita de la hora pisando las cifras.
+    static var cajaDeLosDigitos: (medioAncho: Double, mediaAltura: Double) {
+        let bloque = HoraDeMatriz.tamano(altura: alturaDeLosDigitos)
+        return (Double(bloque.width) / 2, Double(bloque.height) / 2)
+    }
+
+    /// Lo que le sobra a una bolita entre su borde y la caja de los digitos, en
+    /// fracciones del diametro. Negativo quiere decir que la pisa.
+    ///
+    /// Se barren todas las posiciones de la manecilla, no unas cuantas: el peor
+    /// caso no cae ni arriba ni al lado, sino en las diagonales, que es donde
+    /// asoma la esquina de la caja y se acerca mas que cualquiera de sus lados.
+    static func holguraConLosDigitos(de cual: Manecilla) -> Double {
+        let sitio = sitio(de: cual)
+        let caja = cajaDeLosDigitos
+        return (0..<posiciones(de: cual)).map { posicion -> Double in
+            let angulo = Double(posicion) / Double(posiciones(de: cual)) * 2 * .pi
+            let fuera = max(abs(sitio.radio * sin(angulo)) - caja.medioAncho, 0)
+            let debajo = max(abs(sitio.radio * cos(angulo)) - caja.mediaAltura, 0)
+            return (fuera * fuera + debajo * debajo).squareRoot() - sitio.bolita / 2
+        }.min() ?? 0
     }
 
     /// Por dentro de esto no se coge nada: son los digitos de matriz, que a dos
@@ -268,6 +383,10 @@ enum Esferica {
     /// en el anillo del otro. Es lo que hace que apuntar a la bolita funcione
     /// aunque se falle por unos milimetros.
     static let agarre = 0.09
+
+    /// Por debajo de esto las dos distancias son la misma y lo que las separa
+    /// es el redondeo, no el dedo.
+    private static let empate = 1e-9
 
     /// Vueltas desde las doce y en el sentido de las agujas, de 0 a 1.
     static func vueltas(hasta punto: CGPoint, diametro: CGFloat) -> Double {
@@ -289,8 +408,9 @@ enum Esferica {
     /// 1. **Por cercania a la bolita.** Si el dedo cae encima de una, es esa.
     ///    Cuando las dos coinciden —cada hora en punto, y a y media— este paso
     ///    sigue sin dudar: estan a distinto radio, asi que la de dentro y la de
-    ///    fuera nunca empatan salvo justo en el punto medio, y ahi manda la
-    ///    hora.
+    ///    fuera nunca empatan salvo justo en el punto medio. Ese empate existe
+    ///    de verdad y no lo puede decidir el ultimo decimal de un `Double`: se
+    ///    lo queda la hora, la misma regla que la frontera de abajo.
     /// 2. **Por anillo.** Si no, el de dentro es la hora y el de fuera los
     ///    minutos, apunte el dedo a donde apunte. Asi tocar el borde de la
     ///    esfera mueve los minutos aunque las dos bolitas esten en la otra
@@ -305,12 +425,14 @@ enum Esferica {
         guard distanciaAlCentro >= zonaMuerta else { return nil }
 
         let (dx, dy) = desviacion(punto, diametro)
-        let aLaHora = distancia(dx, dy, a: Double(resto(hora, entre: 12)) / 12, sitio: sitio(de: .hora))
-        let alMinuto = distancia(dx, dy, a: Double(resto(minuto, entre: 60)) / 60, sitio: sitio(de: .minuto))
-        if min(aLaHora, alMinuto) <= agarre {
-            return aLaHora <= alMinuto ? .hora : .minuto
+        let aLaHora = distancia(dx, dy, a: vueltas(de: .hora, hora: hora, minuto: minuto),
+                                sitio: sitio(de: .hora))
+        let alMinuto = distancia(dx, dy, a: vueltas(de: .minuto, hora: hora, minuto: minuto),
+                                 sitio: sitio(de: .minuto))
+        if min(aLaHora, alMinuto) <= agarre, abs(aLaHora - alMinuto) > empate {
+            return aLaHora < alMinuto ? .hora : .minuto
         }
-        return distanciaAlCentro < frontera ? .hora : .minuto
+        return distanciaAlCentro <= frontera ? .hora : .minuto
     }
 
     /// El minuto al que apunta el dedo. Da la vuelta sola: pasado el 59 vuelve
@@ -419,6 +541,10 @@ struct MuestraDeEsfera: View {
                     }
                 }
                 EsferaDeReloj(hora: 8, minuto: 20, activa: false, diametro: 140)
+                RelojDeAhora(diametro: 140)
+                Text("La hora que es, en marcha")
+                    .font(Tipografia.pie)
+                    .foregroundStyle(Paleta.textoTenue)
             }
             .padding(Espacio.ancho)
             .frame(maxWidth: .infinity)

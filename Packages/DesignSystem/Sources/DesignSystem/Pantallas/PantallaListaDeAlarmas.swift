@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import AlarmCore
+import AlarmScheduler
 
 /// Lista de alarmas. Es la pantalla que se ve de dia, con calma, y por eso es
 /// donde el neumorfismo puede lucirse.
@@ -73,6 +74,24 @@ public struct PantallaListaDeAlarmas: View {
                                 Pastilla(proxima.challenge.nombre, icono: proxima.challenge.simbolo)
                             }
                         }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, Espacio.corto)
+                } else if !modelo.cargando {
+                    // Sin alarma que ensenar, la esfera se queda igual pero
+                    // cuenta la hora que es. El sitio no se deja en blanco: es
+                    // el centro de la pantalla, y vacio parece una app rota en
+                    // vez de una app sin alarmas.
+                    //
+                    // Solo cuando ya se ha leido el disco. Durante el parpadeo
+                    // del arranque no se sabe todavia si hay alguna, y poner
+                    // "ninguna alarma puesta" debajo de la esfera para tener
+                    // que desdecirse un instante despues es peor que esperar.
+                    VStack(spacing: Espacio.normal) {
+                        RelojDeAhora(diametro: 250)
+                        Text("Ninguna alarma puesta")
+                            .font(Tipografia.cuerpoFuerte)
+                            .foregroundStyle(Paleta.textoSuave)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, Espacio.corto)
@@ -307,4 +326,17 @@ struct TiraDeRacha: View {
 
 #Preview("Lista de alarmas") {
     PantallaListaDeAlarmas().preferredColorScheme(.dark)
+}
+
+/// La app recien instalada, sin nada guardado. Es el estado que menos se mira
+/// y el primero que ve todo el mundo.
+#Preview("Sin ninguna alarma") {
+    PantallaListaDeAlarmas(
+        modelo: ModeloDeAlarmas(
+            repositorio: RepositorioEnMemoria(),
+            programador: PreviewAlarmScheduler(),
+            plan: .deMentira
+        )
+    )
+    .preferredColorScheme(.dark)
 }
