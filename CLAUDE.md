@@ -56,8 +56,11 @@ depende de frameworks solo-iOS va detras de `#if canImport(...)`.
 
 - **`AlarmKit.Alarm` choca con nuestro `AlarmCore.Alarm`.** Dentro de
   `AlarmScheduler`, usa el alias `DomainAlarm`.
-- **AlarmKit exige un entitlement que Apple aprueba caso por caso.** Hasta que
-  llegue, usa `PreviewAlarmScheduler` para todo.
+- **AlarmKit NO exige ningun entitlement especial.** Aqui puso durante meses lo
+  contrario, y era falso: nadie lo habia comprobado. Suena con la cuenta de
+  desarrollador gratuita y con `NSAlarmKitUsageDescription` en el Info.plist.
+  La app monta `SystemAlarmScheduler`. `PreviewAlarmScheduler` sigue estando,
+  pero para los `#Preview` y los tests, no como sustituto.
 - **En el simulador no hay CoreMotion.** Usa `SimulatedChallengeDetector`.
 
 ## Tests

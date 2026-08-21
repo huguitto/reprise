@@ -30,8 +30,10 @@ las trampas que ya conocemos. La tabla es solo el indice.
 
 ## Los cuellos de botella, dichos por adelantado
 
-- **B depende del entitlement de AlarmKit.** Hasta que Apple responda, trabaja a
-  ciegas contra `PreviewAlarmScheduler`.
+- ~~**B depende del entitlement de AlarmKit.**~~ **No era verdad**, y se
+  descubrio el 21/08/2026 solo porque a alguien se le ocurrio intentarlo: no hay
+  entitlement que pedir, la alarma suena. Este cuello de botella se dio por
+  cierto meses sin comprobarlo, y a B le costo trabajar a ciegas para nada.
 - **B y C solo se validan en el iPhone fisico**, y hay uno. Ahi la paralelizacion
   se acaba y hay que turnarse con el usuario delante.
 - **D no depende de nadie** y puede ir a fondo desde el minuto uno.

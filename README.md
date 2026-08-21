@@ -33,5 +33,11 @@ alcance, definicion de terminado y las trampas conocidas.
 
 Fase 0: andamio, contratos entre modulos y motor de rachas con tests.
 
-**Bloqueante abierto:** el entitlement de AlarmKit, que Apple aprueba caso por
-caso, y sin el cual la alarma no puede sonar con la app cerrada.
+**El bloqueante que no era.** Durante toda la fase de agentes se dio por hecho
+que AlarmKit exigia un entitlement que Apple aprueba caso por caso. Nadie lo
+habia intentado. El 21/08/2026 se probo contra el iPhone: compila, **firma con
+una cuenta gratuita**, enlaza `AlarmKit.framework`, instala, y **una alarma
+sono**. Los entitlements firmados son tres —`application-identifier`,
+`com.apple.developer.team-identifier` y `get-task-allow`— y ninguno es de
+AlarmKit. Lo unico que hace falta es `NSAlarmKitUsageDescription` en el
+Info.plist, que ya estaba puesta.
