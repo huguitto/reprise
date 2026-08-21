@@ -128,7 +128,7 @@ struct MigracionTests {
         let r = try await resolutor.resolver(.fallado(.ignorada), dia: dia(20), alarmID: alarmID, challenge: .pasos)
 
         #expect(r.estado.livesRemaining == 0, "agosto ya estaba repuesto: no toca otra vez")
-        #expect(r.registro.outcome == .fallado(.ignorada), "y sin vida, el fallo duele")
+        #expect(r.registro?.outcome == .fallado(.ignorada), "y sin vida, el fallo duele")
         #expect(r.estado.current == 0)
     }
 
@@ -143,7 +143,7 @@ struct MigracionTests {
         let septiembre = try await resolutor.resolver(.fallado(.abandono), dia: dia(1, mes: 9),
                                                       alarmID: nil, challenge: .pasos)
         #expect(septiembre.estado.livesRemaining == 1, "repuestas a 2 y gastada una")
-        #expect(septiembre.registro.outcome == .salvadoPorVida(.abandono))
+        #expect(septiembre.registro?.outcome == .salvadoPorVida(.abandono))
 
         let mismoMes = try await resolutor.resolver(.fallado(.abandono), dia: dia(2, mes: 9),
                                                     alarmID: nil, challenge: .pasos)

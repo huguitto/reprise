@@ -102,7 +102,7 @@ struct SobrevivirAlCierreTests {
         let resolutor = ResolutorDeDia(almacen: segundoArranque, plan: { .pro })
         let resultado = try #require(try await resolutor.resolverRetoHuerfano())
 
-        #expect(resultado.registro.outcome == .fallado(.appTerminada))
+        #expect(resultado.registro?.outcome == .fallado(.appTerminada))
         #expect(resultado.estado.current == 0, "sin vidas, matar la app rompe la racha")
         #expect(try await segundoArranque.load().current == 0, "y queda escrito en disco")
         #expect(try await segundoArranque.current() == nil, "el rastro se cierra al resolverlo")
@@ -112,6 +112,39 @@ struct SobrevivirAlCierreTests {
         let segundoResolutor = ResolutorDeDia(almacen: tercerArranque, plan: { .pro })
         #expect(try await segundoResolutor.resolverRetoHuerfano() == nil, "no se puede penalizar dos veces el mismo dia")
         #expect(try await tercerArranque.records(from: dia(5), to: dia(5)).count == 1)
+    }
+
+    @Test("El rastro huerfano de un dia ya completado no le pisa el registro en disco")
+    func elHuerfanoNoPisaElDiaHecho() async throws {
+        // Dos alarmas el mismo dia, que es de Pro: la de las 06:30 se completa,
+        // la de las 08:00 se empieza y muere la app a mitad. El dia 5 ya esta
+        // contado, asi que la racha aguanta — pero antes el registro del dia
+        // acababa reescrito como fallo y el calendario pintaba un tachon en una
+        // manana en la que el usuario si se levanto.
+        let temporal = AlmacenTemporal()
+        let alarmID = UUID()
+
+        do {
+            let almacen = try temporal.abrir()
+            let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
+            try await resolutor.resolver(.completado, dia: dia(5), alarmID: alarmID, challenge: .pasos)
+            // Segunda alarma del mismo dia: empieza el reto y muere la app.
+            try await almacen.begin(PendingChallenge(alarmID: UUID(), challenge: .sentadillas,
+                                                     day: dia(5), startedAt: Date()))
+        }
+
+        let segundoArranque = try temporal.abrir()
+        let resolutor = ResolutorDeDia(almacen: segundoArranque, plan: { .pro })
+        let resultado = try #require(try await resolutor.resolverRetoHuerfano())
+
+        #expect(resultado.yaEstabaContado)
+        #expect(resultado.registro == nil, "no hay registro que escribir: el dia ya tiene el suyo")
+
+        let enDisco = try await segundoArranque.records(from: dia(5), to: dia(5))
+        #expect(enDisco.count == 1)
+        #expect(enDisco.first?.outcome == .completado, "el dia hecho sigue siendo un dia hecho")
+        #expect(try await segundoArranque.load().current == 1)
+        #expect(try await segundoArranque.current() == nil, "y el rastro se cierra igual")
     }
 
     @Test("Completar el reto y reabrir conserva el dia ganado")

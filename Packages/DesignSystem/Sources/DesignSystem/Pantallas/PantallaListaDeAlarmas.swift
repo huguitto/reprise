@@ -17,8 +17,14 @@ public struct PantallaListaDeAlarmas: View {
     /// `#Preview` sigue funcionando.
     private let alIrARacha: (() -> Void)?
 
-    public init(alIrARacha: (() -> Void)? = nil) {
+    /// La racha que ensena la tira. Es el mismo dato que pinta `PantallaRacha`,
+    /// y por eso entra por parametro en vez de leerse de `DatosDeMentira`: dos
+    /// lecturas distintas del mismo numero acaban ensenando dos numeros.
+    private let racha: DatosDeRacha
+
+    public init(alIrARacha: (() -> Void)? = nil, racha: DatosDeRacha = .deMentira) {
         self.alIrARacha = alIrARacha
+        self.racha = racha
     }
 
     private var proxima: Alarm? { alarmas.first(where: \.isEnabled) }
@@ -50,8 +56,7 @@ public struct PantallaListaDeAlarmas: View {
                 }
 
                 Button { alIrARacha?() } label: {
-                    TiraDeRacha(racha: DatosDeMentira.rachaActual,
-                                vidas: DatosDeMentira.vidasRestantes)
+                    TiraDeRacha(racha: racha.racha, vidas: racha.vidas)
                 }
                 .buttonStyle(.plain)
                 .disabled(alIrARacha == nil)

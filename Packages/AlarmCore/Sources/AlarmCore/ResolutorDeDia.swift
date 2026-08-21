@@ -23,7 +23,12 @@ public protocol AlmacenDeRachas: Sendable {
     /// El borrado del rastro va aqui dentro y no en una llamada aparte por el
     /// mismo motivo: un rastro que sobrevive a su propio dia resuelto haria que
     /// el siguiente arranque penalizara otra vez.
-    func confirmarDia(estado: StreakState, registro: DayRecord) async throws
+    ///
+    /// `registro` es `nil` cuando el dia ya estaba contado. Entonces no hay nada
+    /// que escribir en el historial —el dia ya tiene el suyo y pisarlo lo
+    /// falsearia— pero el rastro hay que cerrarlo igual, que es justo el caso en
+    /// el que llega un `nil`.
+    func confirmarDia(estado: StreakState, registro: DayRecord?) async throws
 }
 
 /// Resuelve un dia entero: coge el estado guardado, se lo pasa al motor y
@@ -39,7 +44,10 @@ public actor ResolutorDeDia {
     public struct Resultado: Sendable, Hashable {
         /// Lo que se guardo. Ojo: puede no coincidir con lo que entro. Un
         /// `.fallado` sale como `.salvadoPorVida` si quedaba alguna vida.
-        public let registro: DayRecord
+        ///
+        /// `nil` si el dia ya estaba contado: entonces no se guardo registro
+        /// ninguno, porque el dia ya tenia el suyo.
+        public let registro: DayRecord?
         public let estadoAnterior: StreakState
         public let estado: StreakState
 
@@ -48,7 +56,7 @@ public actor ResolutorDeDia {
         public var insigniasNuevas: Set<Insignia> { Insignias.nuevas(de: estadoAnterior, a: estado) }
 
         /// `true` si el dia no cambio nada porque ya estaba contado.
-        public var yaEstabaContado: Bool { estado == estadoAnterior }
+        public var yaEstabaContado: Bool { registro == nil }
     }
 
     private let almacen: any AlmacenDeRachas
@@ -118,5 +126,49 @@ public actor ResolutorDeDia {
             alarmID: pendiente.alarmID,
             challenge: pendiente.challenge
         )
+    }
+
+    /// Los dias que sonaron y nadie conto, resueltos como `.fallado(.ignorada)`.
+    ///
+    /// Cubre el agujero que el motor no puede ver desde dentro: pulsar "Stop" en
+    /// la interfaz del sistema, o no enterarse de que ha sonado, no ejecuta
+    /// codigo nuestro y por tanto no le llega ningun dia al motor. Sin esto,
+    /// ignorar la alarma tres mananas seguidas sale gratis y la racha sigue
+    /// subiendo como si nada.
+    ///
+    /// Se llama **al arrancar y despues de `resolverRetoHuerfano()`**: el
+    /// huerfano puede ser de un dia anterior, y resolverlo primero mueve la
+    /// frontera desde la que se barre.
+    ///
+    /// Los dias salen en orden y se resuelven de uno en uno, cada uno con su
+    /// transaccion, porque cada uno puede gastar una vida o romper la racha y el
+    /// orden decide cual. Hoy no entra: todavia se puede completar.
+    ///
+    /// - Parameter alarmas: las **efectivas** para el plan del usuario, ya
+    ///   pasadas por `PoliticaDelPlan.alarmasEfectivas`.
+    @discardableResult
+    public func resolverDiasPerdidos(
+        hasta hoy: Day,
+        alarmas: [Alarm],
+        calendario: Calendar = .current
+    ) async throws -> [Resultado] {
+        let estado = try await almacen.rachaActual()
+        let perdidos = DiasPerdidos.entre(
+            ultimoContado: estado.lastCountedDay,
+            y: hoy,
+            alarmas: alarmas,
+            calendario: calendario
+        )
+
+        var salida: [Resultado] = []
+        for perdido in perdidos {
+            salida.append(try await resolver(
+                .fallado(.ignorada),
+                dia: perdido.dia,
+                alarmID: perdido.alarmID,
+                challenge: perdido.challenge
+            ))
+        }
+        return salida
     }
 }

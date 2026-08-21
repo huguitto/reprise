@@ -207,10 +207,16 @@ extension AlmacenSwiftData: AlmacenDeRachas {
     public func retoPendiente() throws -> PendingChallenge? { try current() }
 
     /// Estado, registro y cierre del rastro, en un unico `save()`.
-    public func confirmarDia(estado: StreakState, registro: DayRecord) throws {
+    ///
+    /// Con `registro` a `nil` el dia ya estaba contado: se guarda el estado (que
+    /// no ha cambiado) y se cierra el rastro, pero **no se toca el historial**.
+    /// Escribir ahi lo que trae un dia ya resuelto pisaria lo guardado, y el
+    /// caso real —dos alarmas el mismo dia, la primera hecha y la segunda con la
+    /// app muerta a mitad— acababa pintando un fallo en un dia completado.
+    public func confirmarDia(estado: StreakState, registro: DayRecord?) throws {
         try enTransaccion {
             try escribirEstado(estado)
-            try escribirRegistro(registro)
+            if let registro { try escribirRegistro(registro) }
             try borrarPendiente()
         }
     }

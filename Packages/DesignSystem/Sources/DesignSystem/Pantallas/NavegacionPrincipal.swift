@@ -9,16 +9,21 @@ import SwiftUI
 ///   - **El reto** no se visita: aparece cuando suena la alarma, y eso lo monta
 ///     AlarmScheduler. Hasta que exista, se mira desde la galeria.
 ///
-/// Todo lo de dentro sigue siendo estatico y con datos inventados: aqui se
-/// conecta la navegacion, no la logica.
+/// La racha ya no es estatica: entra por `racha` y la monta la app leyendo del
+/// disco. Las alarmas y el ranking siguen con datos inventados.
 public struct NavegacionPrincipal: View {
     @State private var seccion: Seccion
+
+    /// El estado de racha de verdad. Por defecto, el de mentira, para que los
+    /// `#Preview` y la galeria de diseno sigan funcionando sueltos.
+    private let racha: DatosDeRacha
 
     /// La seccion de arranque es un parametro para poder mirar cada una por
     /// separado en los `#Preview` y en las capturas. La app siempre entra por
     /// alarmas: es lo que se viene a hacer.
-    public init(seccion: Seccion = .alarmas) {
+    public init(seccion: Seccion = .alarmas, racha: DatosDeRacha = .deMentira) {
         self._seccion = State(initialValue: seccion)
+        self.racha = racha
     }
 
     public var body: some View {
@@ -36,9 +41,9 @@ public struct NavegacionPrincipal: View {
     @ViewBuilder
     private var contenido: some View {
         switch seccion {
-        case .alarmas: PantallaListaDeAlarmas { seccion = .racha }
-        case .racha: PantallaRacha()
-        case .ranking: PantallaRanking()
+        case .alarmas: PantallaListaDeAlarmas(alIrARacha: { seccion = .racha }, racha: racha)
+        case .racha: PantallaRacha(datos: racha)
+        case .ranking: PantallaRanking(esPro: racha.plan.esPro)
         }
     }
 }

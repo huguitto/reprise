@@ -68,7 +68,7 @@ extension FailureReason {
         case .paroSinReto: "Paraste sin hacer el reto"
         case .abandono: "Dejaste el reto a medias"
         case .appTerminada: "Cerraste la app durante el reto"
-        case .ignorada: "No sonaste ni te enteraste"
+        case .ignorada: "Sonó y no te levantaste"
         }
     }
 }
