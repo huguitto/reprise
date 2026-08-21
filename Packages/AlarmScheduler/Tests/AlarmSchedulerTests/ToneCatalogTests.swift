@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import AVFoundation
 import AlarmCore
 @testable import AlarmScheduler
 
@@ -47,9 +48,51 @@ struct ToneCatalogTests {
         #expect(ToneCatalog.duracionMaxima == 30)
     }
 
-    @Test("El catalogo de hoy no tiene problemas")
-    func catalogoSano() async {
-        let problemas = await ToneCatalog.problemas(en: .main)
-        #expect(problemas.isEmpty, "\(problemas.map(\.mensaje))")
+    @Test("Cada tono del bundle declara su fichero, y no hay dos que apunten al mismo")
+    func cadaTonoTieneSuFichero() {
+        for tono in ToneCatalog.delBundle {
+            #expect(tono.fileName != nil, "el tono '\(tono.id)' no dice de que fichero sale")
+        }
+        let ficheros = ToneCatalog.delBundle.compactMap(\.fileName)
+        #expect(Set(ficheros).count == ficheros.count, "hay dos tonos apuntando al mismo fichero")
+    }
+
+    /// Los ficheros del catalogo existen de verdad y caben en el limite.
+    ///
+    /// Antes esto se preguntaba a `Bundle.main`, y en `swift test` el bundle es
+    /// el de los tests: sin audio dentro, el resultado era el mismo tanto si el
+    /// catalogo estaba bien como si estaba vacio. Se mira `App/Resources`, que
+    /// es de donde los coge la app, localizado desde este mismo fichero para no
+    /// depender de desde donde se lance el test.
+    ///
+    /// Lo que caza: declarar un tono y olvidarse del fichero, y meter uno que
+    /// pase de los 30 segundos que corta AlarmKit. Las dos cosas se descubrirían
+    /// si no a las siete de la manana, en casa de alguien.
+    @Test("Los ficheros del catalogo estan en App/Resources y no pasan de 30 s")
+    func ficherosDelCatalogo() async throws {
+        let raiz = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // AlarmSchedulerTests
+            .deletingLastPathComponent()   // Tests
+            .deletingLastPathComponent()   // AlarmScheduler
+            .deletingLastPathComponent()   // Packages
+            .deletingLastPathComponent()   // raiz del repo
+            .appending(path: "App/Resources")
+
+        for tono in ToneCatalog.delBundle {
+            let fichero = try #require(tono.fileName)
+            let url = raiz.appending(path: fichero)
+            #expect(FileManager.default.fileExists(atPath: url.path),
+                    "el tono '\(tono.id)' apunta a '\(fichero)' y ese fichero no esta en App/Resources")
+
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            let duracion = try await duracionDe(url)
+            #expect(duracion <= ToneCatalog.duracionMaxima,
+                    "el tono '\(tono.id)' dura \(duracion) s y AlarmKit corta a los \(ToneCatalog.duracionMaxima)")
+        }
+    }
+
+    private func duracionDe(_ url: URL) async throws -> TimeInterval {
+        let asset = AVURLAsset(url: url)
+        return CMTimeGetSeconds(try await asset.load(.duration))
     }
 }

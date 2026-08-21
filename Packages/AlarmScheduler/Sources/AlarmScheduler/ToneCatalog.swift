@@ -26,12 +26,27 @@ public enum ToneCatalog {
 
     /// Tonos propios que viajan en el bundle.
     ///
-    /// Vacio a proposito: todavia no hay ni un fichero de audio en el repo.
-    /// Anadir uno son dos pasos y ninguno toca codigo de nadie mas: dejar el
-    /// fichero en `App/Resources` (maximo 30 s, `.caf` o `.wav`) y anadir aqui
-    /// su `Tone`. Todo lo demas —busqueda, validacion, reserva Pro y respaldo—
-    /// ya funciona.
-    public static let delBundle: [Tone] = []
+    /// Estuvo vacio hasta el 21/08/2026, y eso dejaba el catalogo entero en
+    /// nada: la unica opcion era el sonido del sistema, la fila "Tono" de la
+    /// hoja de alarma no llevaba a ningun sitio y el muro de pago vendia "el
+    /// catalogo de tonos entero" sin que hubiera catalogo. Todo el camino
+    /// —`Alarm.toneID`, `ToneRegistry`, la alerta de AlarmKit y el sonido que
+    /// sostiene el reto— ya estaba montado y no lo alcanzaba nadie.
+    ///
+    /// **Los cuatro ficheros son de sintesis y estan para sustituirse.** Duran
+    /// 20 s (el tope de AlarmKit son 30), van en `ima4` mono a 44,1 kHz y se
+    /// generaron con un script, no con un estudio: cumplen su funcion y suenan
+    /// a lo que dice su nombre, pero el dia que haya sonido disenado se cambian
+    /// los ficheros de `App/Resources` y aqui no se toca nada.
+    ///
+    /// El reparto sale de `docs/decisiones-producto.md`: uno gratis ademas del
+    /// del sistema, y el resto de Pro.
+    public static let delBundle: [Tone] = [
+        Tone(id: "amanecer", nombre: "Amanecer", fileName: "amanecer.caf", isPro: false),
+        Tone(id: "campana", nombre: "Campana", fileName: "campana.caf", isPro: true),
+        Tone(id: "taller", nombre: "Taller", fileName: "taller.caf", isPro: true),
+        Tone(id: "sirena", nombre: "Sirena", fileName: "sirena.caf", isPro: true)
+    ]
 
     public static var todos: [Tone] { [sistema] + delBundle }
     public static var gratis: [Tone] { todos.filter { !$0.isPro } }

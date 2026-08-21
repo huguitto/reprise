@@ -1,4 +1,6 @@
 import SwiftUI
+import Foundation
+import AlarmCore
 
 /// Ranking mundial y por paises, con temporada mensual.
 ///
@@ -18,6 +20,22 @@ public struct PantallaRanking: View {
         case espana = "España"
     }
 
+    /// El mes en curso, en palabras. Estaba escrito "de agosto" y el dia 1 de
+    /// septiembre la temporada nueva seguia llamandose agosto. Mismo problema
+    /// que tenia el calendario de la racha, y se arregla igual.
+    static func mesDeLaTemporada(_ ahora: Date = Date()) -> String {
+        let formato = DateFormatter()
+        formato.locale = Locale(identifier: "es_ES")
+        formato.setLocalizedDateFormatFromTemplate("MMMM")
+        return formato.string(from: ahora)
+    }
+
+    /// El ultimo dia del mes en curso. Estaba escrito "el 31", asi que en
+    /// febrero prometia tres dias de temporada que no existen.
+    static func ultimoDiaDelMes(_ ahora: Date = Date(), calendario: Calendar = .current) -> Int {
+        calendario.range(of: .day, in: .month, for: ahora)?.count ?? 30
+    }
+
     private var lista: [PuestoDeRanking] {
         ambito == .mundial ? DatosDeMentira.rankingMundial : DatosDeMentira.rankingDeEspana
     }
@@ -29,7 +47,7 @@ public struct PantallaRanking: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
-                Cabecera("Ranking", subtitulo: "de agosto") {
+                Cabecera("Ranking", subtitulo: "de \(Self.mesDeLaTemporada())") {
                     Button { mostrarHistorico = true } label: {
                         Image(systemName: "clock.arrow.circlepath")
                     }
@@ -59,7 +77,7 @@ public struct PantallaRanking: View {
                 .padding(.horizontal, Espacio.margen)
 
                 VStack(alignment: .leading, spacing: Espacio.mini) {
-                    Text("La temporada acaba el 31. Tu récord histórico se guarda aparte.")
+                    Text("La temporada acaba el \(Self.ultimoDiaDelMes()). Tu récord histórico se guarda aparte.")
                     Text("Se ven los cien primeros y tu puesto, pagues o no.")
                 }
                 .font(Tipografia.pie)

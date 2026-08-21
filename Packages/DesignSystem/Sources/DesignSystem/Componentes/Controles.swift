@@ -170,6 +170,15 @@ public struct FilaDeAjuste<Derecha: View>: View {
         }
         .padding(.horizontal, Espacio.normal)
         .padding(.vertical, 14)
+        // La fila entera es el objetivo, tambien el hueco del medio.
+        //
+        // Sin esto, una fila dentro de un `Button` con `.buttonStyle(.plain)`
+        // solo responde donde hay algo pintado: el `Spacer` entre el titulo y
+        // lo de la derecha es un agujero, y justo ahi es donde cae el dedo —y
+        // el toque de una prueba— cuando se apunta al centro de la fila. La
+        // fila "Tono" de la hoja de alarma se pulsaba y no pasaba nada, y en el
+        // arbol de accesibilidad salia como un boton normal y corriente.
+        .contentShape(Rectangle())
     }
 }
 
