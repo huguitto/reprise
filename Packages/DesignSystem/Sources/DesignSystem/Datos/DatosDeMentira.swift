@@ -115,6 +115,23 @@ public enum DatosDeMentira {
         posicion: 271, nombre: "tu", bandera: "🇪🇸", racha: rachaActual, eresTu: true
     )
 
+    /// Las temporadas ya cerradas, de la mas reciente a la mas vieja.
+    ///
+    /// La mejor es julio, que acaba en 28: el mismo numero que `mejorRacha`,
+    /// porque la marca personal tiene que cuadrar con el mes en que se hizo.
+    public static let temporadasCerradas: [TemporadaDeRanking] = [
+        TemporadaDeRanking(id: "2026-07", mes: "Julio 2026",
+                           puestoMundial: 1204, puestoEnPais: 88, rachaFinal: 28),
+        TemporadaDeRanking(id: "2026-06", mes: "Junio 2026",
+                           puestoMundial: 1860, puestoEnPais: 121, rachaFinal: 21),
+        TemporadaDeRanking(id: "2026-05", mes: "Mayo 2026",
+                           puestoMundial: 8402, puestoEnPais: 540, rachaFinal: 9),
+        TemporadaDeRanking(id: "2026-04", mes: "Abril 2026",
+                           puestoMundial: 4117, puestoEnPais: 266, rachaFinal: 14),
+        TemporadaDeRanking(id: "2026-03", mes: "Marzo 2026",
+                           puestoMundial: 15238, puestoEnPais: 1043, rachaFinal: 4)
+    ]
+
     // MARK: - Pro
 
     public static let ventajasPro: [(simbolo: String, texto: String)] = [
@@ -123,7 +140,6 @@ public enum DatosDeMentira {
         ("heart.fill", "2 vidas al mes para la racha"),
         ("music.note.list", "El catálogo de tonos entero"),
         ("chart.bar.fill", "Estadísticas e histórico completo"),
-        ("flag.fill", "Ranking filtrado por país"),
         ("rosette", "Insignias y temas exclusivos"),
         ("dial.high.fill", "Subir la dificultad del reto")
     ]
