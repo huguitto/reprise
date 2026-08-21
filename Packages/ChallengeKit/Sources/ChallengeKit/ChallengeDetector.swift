@@ -39,15 +39,21 @@ public protocol ChallengeDetector: Actor {
 }
 
 public enum ChallengeDetectorFactory {
-    /// Devuelve el detector real en dispositivo y el simulado en simulador.
+    /// Devuelve el detector real en un iPhone de verdad y el simulado en
+    /// cualquier otro sitio.
+    ///
+    /// La guarda es `os(iOS)` y no `canImport(CoreMotion)` porque CoreMotion se
+    /// importa tambien en macOS pero con casi todo marcado como no disponible.
+    /// Con `canImport`, `swift build` en el Mac —que es como corren los tests sin
+    /// simulador— intentaria compilar los detectores reales y no compilaria.
     public static func make(for challenge: ChallengeType) -> any ChallengeDetector {
-        #if targetEnvironment(simulator) || !canImport(CoreMotion)
-        return SimulatedChallengeDetector(goal: challenge.goal)
-        #else
+        #if os(iOS) && !targetEnvironment(simulator)
         switch challenge {
         case .pasos: return StepDetector(goal: challenge.goal)
         case .sentadillas: return SquatDetector(goal: challenge.goal)
         }
+        #else
+        return SimulatedChallengeDetector(goal: challenge.goal)
         #endif
     }
 }
