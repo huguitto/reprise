@@ -63,40 +63,23 @@ public struct PantallaListaDeAlarmas: View {
 
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Espacio.amplio) {
+        // Esta pantalla ya no se desplaza entera: cabe y se queda quieta. Lo
+        // unico que crece sin limite es la lista de "Todas", y es lo unico que
+        // lleva `ScrollView` vertical. Lo demas —cabecera, esfera, tira de
+        // racha y los avisos— tiene sitio fijo, asi que la esfera esta siempre
+        // donde se dejo y los avisos no se esconden por debajo del borde.
+        GeometryReader { medida in
+            // Los bloques van a `normal` y no a `amplio`: los cuatro respiros
+            // de esta columna son cuatro filas de la lista, y la lista es lo
+            // que se venia a mirar.
+            VStack(alignment: .leading, spacing: Espacio.normal) {
                 Cabecera("Alarmas", subtitulo: subtituloDeCabecera) {
                     Button { creandoAlarma = true } label: { Image(systemName: "plus") }
                         .buttonStyle(.redondo)
                         .accessibilityLabel(Text("Nueva alarma"))
                 }
 
-                if !activas.isEmpty {
-                    // Con una sola alarma esto es la esfera de siempre. Con
-                    // varias se arrastra de una a otra, y los puntos de su pie
-                    // son lo que cuenta de un vistazo que hay mas de una
-                    // puesta. Ver `CarruselDeAlarmas`.
-                    CarruselDeAlarmas(alarmas: activas, empezandoPor: modelo.proxima?.id)
-                        .padding(.top, Espacio.corto)
-                } else if !modelo.cargando {
-                    // Sin alarma que ensenar, la esfera se queda igual pero
-                    // cuenta la hora que es. El sitio no se deja en blanco: es
-                    // el centro de la pantalla, y vacio parece una app rota en
-                    // vez de una app sin alarmas.
-                    //
-                    // Solo cuando ya se ha leido el disco. Durante el parpadeo
-                    // del arranque no se sabe todavia si hay alguna, y poner
-                    // "ninguna alarma puesta" debajo de la esfera para tener
-                    // que desdecirse un instante despues es peor que esperar.
-                    VStack(spacing: Espacio.normal) {
-                        RelojDeAhora(diametro: 250)
-                        Text("Ninguna alarma puesta")
-                            .font(Tipografia.cuerpoFuerte)
-                            .foregroundStyle(Paleta.textoSuave)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, Espacio.corto)
-                }
+                laEsfera(diametro: diametroDeLaEsfera(en: medida.size))
 
                 Button { alIrARacha?() } label: {
                     TiraDeRacha(racha: racha.racha, vidas: racha.vidas)
@@ -105,75 +88,13 @@ public struct PantallaListaDeAlarmas: View {
                 .disabled(alIrARacha == nil)
                 .padding(.horizontal, Espacio.margen)
 
-                VStack(alignment: .leading, spacing: Espacio.medio) {
-                    Text("Todas").estiloRotulo()
-                        .padding(.horizontal, Espacio.margen + Espacio.mini)
+                todas
 
-                    VStack(spacing: Espacio.medio) {
-                        if alarmas.isEmpty && !modelo.cargando {
-                            Text("Todavía no hay ninguna. Toca + para poner la primera.")
-                                .font(Tipografia.pie)
-                                .foregroundStyle(Paleta.textoSuave)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, Espacio.normal)
-                        }
-                        ForEach(alarmas) { alarma in
-                            DeslizarParaBorrar(
-                                id: alarma.id,
-                                abierta: $filaConPapelera,
-                                queSeBorra: descripcion(de: alarma)
-                            ) {
-                                Task { await modelo.eliminar(id: alarma.id) }
-                            } contenido: {
-                                FilaDeAlarma(alarma: alarma) {
-                                    alarmaEnEdicion = alarma
-                                } alCambiarEncendido: { encendido in
-                                    Task {
-                                        let resultado = await modelo.cambiarEncendido(
-                                            id: alarma.id, a: encendido
-                                        )
-                                        if case let .loImpideElPlan(motivo) = resultado {
-                                            muroDePago = MotivoDelMuro(motivo)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, Espacio.margen)
-                }
-
-                // El permiso va primero de los tres avisos: sin el no suena
-                // nada, y da igual lo bien configurado que este lo demas.
-                if let avisoDePermiso = modelo.avisoDePermiso {
-                    Text(avisoDePermiso)
-                        .font(Tipografia.pieFuerte)
-                        .foregroundStyle(Paleta.acento)
-                        .padding(.horizontal, Espacio.margen)
-                }
-
-                if let fallo = modelo.fallo {
-                    Text(fallo)
-                        .font(Tipografia.pie)
-                        .foregroundStyle(Paleta.acento)
-                        .padding(.horizontal, Espacio.margen)
-                }
-
-                if modelo.elPlanRecortaAlgo {
-                    // Una alarma que sale apagada sola sin que nadie la haya
-                    // tocado es de las cosas que mas desconcierta. Se dice.
-                    Text("Tu plan no da para todo lo que tienes guardado: lo que sobra sale apagado, pero no se ha borrado nada.")
-                        .font(Tipografia.pie)
-                        .foregroundStyle(Paleta.textoSuave)
-                        .padding(.horizontal, Espacio.margen)
-                } else if let plan, !plan.esPro {
-                    Text("Con la versión gratis solo puede quedar una alarma activa.")
-                        .font(Tipografia.pie)
-                        .foregroundStyle(Paleta.textoTenue)
-                        .padding(.horizontal, Espacio.margen)
-                }
+                avisos
             }
-            .padding(.vertical, Espacio.amplio)
+            .padding(.top, Espacio.amplio)
+            .padding(.bottom, Espacio.normal)
+            .frame(width: medida.size.width, height: medida.size.height, alignment: .top)
         }
         .fondoDePantalla()
         .task { await modelo.cargar() }
@@ -199,6 +120,156 @@ public struct PantallaListaDeAlarmas: View {
         }
     }
 
+    // MARK: - Piezas
+
+    /// La zona del disco: el carrusel de lo que esta puesto o, si no hay nada,
+    /// el reloj de la hora que es.
+    ///
+    /// El alto va fijado. Mientras se lee el disco no se sabe todavia si hay
+    /// alarma, y sin reservarle el sitio la pantalla entera daria un salto al
+    /// terminar de cargar.
+    private func laEsfera(diametro: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            if !activas.isEmpty {
+                // Con una sola alarma esto es la esfera de siempre. Con varias
+                // se arrastra de una a otra, y los puntos de su pie son lo que
+                // cuenta de un vistazo que hay mas de una puesta. Ver
+                // `CarruselDeAlarmas`.
+                CarruselDeAlarmas(alarmas: activas, empezandoPor: modelo.proxima?.id,
+                                  diametro: diametro)
+            } else if !modelo.cargando {
+                // Sin alarma que ensenar, la esfera se queda igual pero cuenta
+                // la hora que es. El sitio no se deja en blanco: es el centro
+                // de la pantalla, y vacio parece una app rota en vez de una app
+                // sin alarmas.
+                //
+                // Solo cuando ya se ha leido el disco. Durante el parpadeo del
+                // arranque no se sabe todavia si hay alguna, y poner "ninguna
+                // alarma puesta" debajo de la esfera para tener que desdecirse
+                // un instante despues es peor que esperar.
+                RelojDeAhora(diametro: diametro)
+                Text("Ninguna alarma puesta")
+                    .font(Tipografia.cuerpoFuerte)
+                    .foregroundStyle(Paleta.textoSuave)
+                    .padding(.top, Espacio.medio)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: altoDeLaEsfera(diametro: diametro), alignment: .top)
+    }
+
+    /// Lo que se le reserva a la zona del disco: el disco, la frase de debajo y,
+    /// solo cuando hay mas de una alarma puesta, la fila de puntos del carrusel.
+    private func altoDeLaEsfera(diametro: CGFloat) -> CGFloat {
+        diametro + Espacio.medio + Self.altoDeLaFrase
+            + (activas.count > 1 ? Self.altoDeLosPuntos : 0)
+    }
+
+    /// Lo que ocupa la frase de debajo de la esfera, para poder reservarle el
+    /// sitio antes de tener nada que escribir en ella.
+    private static let altoDeLaFrase: CGFloat = 22
+    /// Lo que ocupa la fila de puntos del carrusel, tocable de 34.
+    private static let altoDeLosPuntos: CGFloat = 34
+
+    /// Cuanto mide la esfera aqui.
+    ///
+    /// Antes eran 250 fijos y podian serlo: la pantalla se desplazaba, asi que
+    /// lo que no cabia se empujaba hacia abajo. Ahora no se desplaza y la
+    /// esfera le quita el sitio a la lista: cada 60 puntos de disco son una
+    /// alarma menos que se ve. Baja a 230 —sigue siendo la pieza mas grande con
+    /// diferencia— y encoge mas en los telefonos pequenos, donde a 250 no
+    /// quedaba ni una fila entera.
+    private func diametroDeLaEsfera(en tamano: CGSize) -> CGFloat {
+        min(230, tamano.width - Espacio.margen * 2, max(170, tamano.height * 0.30))
+    }
+
+    /// Todas las alarmas guardadas. Es lo unico que se desplaza.
+    private var todas: some View {
+        VStack(alignment: .leading, spacing: Espacio.medio) {
+            Text("Todas").estiloRotulo()
+                .padding(.horizontal, Espacio.margen + Espacio.mini)
+
+            ScrollView {
+                VStack(spacing: Espacio.medio) {
+                    if alarmas.isEmpty && !modelo.cargando {
+                        Text("Todavía no hay ninguna. Toca + para poner la primera.")
+                            .font(Tipografia.pie)
+                            .foregroundStyle(Paleta.textoSuave)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, Espacio.normal)
+                    }
+                    ForEach(alarmas) { alarma in
+                        DeslizarParaBorrar(
+                            id: alarma.id,
+                            abierta: $filaConPapelera,
+                            queSeBorra: descripcion(de: alarma)
+                        ) {
+                            Task { await modelo.eliminar(id: alarma.id) }
+                        } contenido: {
+                            FilaDeAlarma(alarma: alarma) {
+                                alarmaEnEdicion = alarma
+                            } alCambiarEncendido: { encendido in
+                                Task {
+                                    let resultado = await modelo.cambiarEncendido(
+                                        id: alarma.id, a: encendido
+                                    )
+                                    if case let .loImpideElPlan(motivo) = resultado {
+                                        muroDePago = MotivoDelMuro(motivo)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, Espacio.margen)
+                // El relieve de las filas se sale de su marco: sin este respiro,
+                // la sombra de la primera y la ultima se corta contra el borde
+                // del ScrollView.
+                .padding(.vertical, Espacio.mini)
+            }
+            // Con dos alarmas la lista no rebota como si hubiera algo mas
+            // abajo: solo se desplaza cuando de verdad no cabe.
+            .scrollBounceBehavior(.basedOnSize)
+        }
+    }
+
+    /// Los tres avisos, al pie y quietos. Van fuera del ScrollView a proposito:
+    /// el del permiso es lo mas importante que puede haber en esta pantalla
+    /// —sin el no suena nada— y no puede quedarse escondido debajo de una lista
+    /// larga.
+    @ViewBuilder
+    private var avisos: some View {
+        VStack(alignment: .leading, spacing: Espacio.corto) {
+            // El permiso va primero de los tres: sin el no suena nada, y da
+            // igual lo bien configurado que este lo demas.
+            if let avisoDePermiso = modelo.avisoDePermiso {
+                Text(avisoDePermiso)
+                    .font(Tipografia.pieFuerte)
+                    .foregroundStyle(Paleta.acento)
+            }
+
+            if let fallo = modelo.fallo {
+                Text(fallo)
+                    .font(Tipografia.pie)
+                    .foregroundStyle(Paleta.acento)
+            }
+
+            if modelo.elPlanRecortaAlgo {
+                // Una alarma que sale apagada sola sin que nadie la haya tocado
+                // es de las cosas que mas desconcierta. Se dice.
+                Text("Tu plan no da para todo lo que tienes guardado: lo que sobra sale apagado, pero no se ha borrado nada.")
+                    .font(Tipografia.pie)
+                    .foregroundStyle(Paleta.textoSuave)
+            } else if let plan, !plan.esPro {
+                Text("Con la versión gratis solo puede quedar una alarma activa.")
+                    .font(Tipografia.pie)
+                    .foregroundStyle(Paleta.textoTenue)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Espacio.margen)
+    }
+
     /// Como se nombra una alarma cuando hay que decir cual se borra. Es lo que
     /// oye quien usa VoiceOver antes de confirmar el gesto.
     private func descripcion(de alarma: Alarm) -> String {
@@ -211,20 +282,22 @@ public struct PantallaListaDeAlarmas: View {
         modelo.alarmas.first { $0.id == alarma.id } ?? alarma
     }
 
-    /// La segunda linea del titular.
+    /// La segunda linea del titular, cuando hay algo que decir.
     ///
-    /// Con una sola alarma dice cuando suena. Con varias dice **cuantas hay**,
-    /// y no sigue al carrusel: la frase larga —"El domingo a las 9:00"— ocupa
-    /// dos lineas donde la corta ocupa una, asi que cambiarla al pasar de
-    /// alarma empujaba la esfera treinta puntos arriba y abajo, y la pantalla
-    /// entera daba un tiron en cada pase. Cada diapositiva dice su hora en su
-    /// propio pie, que es donde no molesta. Aqui arriba, ademas, el numero es
-    /// lo que avisa de que hay mas de una antes incluso de tocar nada.
-    private var subtituloDeCabecera: String {
+    /// Dice **cuantas hay**, y solo cuando hay mas de una: la hora de cada
+    /// alarma la dice ya su diapositiva, debajo de la esfera, y repetirla aqui
+    /// arriba con una sola puesta era decir dos veces lo mismo en la misma
+    /// pantalla. El numero, en cambio, avisa de que hay mas antes de tocar
+    /// nada.
+    ///
+    /// Tampoco sigue al carrusel, y no es un olvido: la frase larga —"El
+    /// domingo a las 9:00"— ocupa dos lineas donde la corta ocupa una, asi que
+    /// cambiarla al pasar de alarma empujaba la esfera treinta puntos arriba y
+    /// abajo y la pantalla entera daba un tiron en cada pase.
+    private var subtituloDeCabecera: String? {
         if modelo.cargando { return "Un momento" }
-        guard let proxima = modelo.proxima else { return "Ninguna puesta" }
-        guard activas.count == 1 else { return "\(activas.count) puestas" }
-        return proxima.cuandoSuenaEnPalabras()
+        if activas.isEmpty { return "Ninguna puesta" }
+        return activas.count > 1 ? "\(activas.count) puestas" : nil
     }
 }
 
