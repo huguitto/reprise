@@ -20,10 +20,13 @@ struct RepRiseApp: App {
 /// pasan por `AlarmCore` y se pintan. El ranking sigue siendo estatico, que la
 /// red va en otra rama.
 ///
-/// Falta una cosa que no se puede montar desde aqui: **el reto no se alcanza**.
-/// No es un olvido, es que no se visita a voluntad — aparece cuando suena la
-/// alarma, y quien lo arranca es AlarmScheduler. Hasta entonces se mira desde
-/// el muestrario, en Ajustes > Sistema de diseno.
+/// **El reto ya se alcanza.** Sigue sin visitarse a voluntad —no esta en la
+/// barra y no hay forma de llegar a el a mano, que ponerlo a un toque seria dar
+/// la forma de saltarselo— pero cuando la alerta de la alarma deja un recado en
+/// `ChallengeInbox`, esta pantalla se aparta y sale `PantallaReto` contando de
+/// verdad. Ese buzon llevaba escrito desde el principio y no lo leia nadie:
+/// pulsar "Hacer el reto" abria la app por la lista de alarmas y ahi se
+/// acababa todo.
 ///
 /// Hasta el 21 de agosto de 2026 colgaba aqui una segunda barra, visible solo en
 /// DEBUG, con la calibracion de sentadillas al lado de la app. Se quito al dar
@@ -47,6 +50,9 @@ struct RootView: View {
     @State private var alarmas: ModeloDeAlarmas?
     @State private var falloAlAbrir: String?
 
+    /// El reto en curso, si lo hay. Manda sobre todo lo demas mientras dure.
+    @State private var reto: ModeloDeReto?
+
     /// El plan contratado. No necesita disco —vive en `UserDefaults` mientras no
     /// haya StoreKit— asi que se monta antes que nada y sobrevive al fallo del
     /// almacen.
@@ -65,8 +71,18 @@ struct RootView: View {
             // Al volver del fondo se vuelve a cobrar: la app pudo pasarse la
             // noche abierta y el dia ya no es el mismo.
             .onChange(of: fase) { _, nueva in
-                guard nueva == .active, let racha else { return }
-                Task { await racha.arrancar() }
+                guard nueva == .active else { return }
+                Task { await alVolverAlFrente() }
+            }
+            // El recado del boton "Hacer el reto" y el arranque de la app son
+            // dos carreras distintas y no hay orden garantizado entre ellas: si
+            // la app estaba muerta, `perform()` del intent puede escribir en el
+            // buzon despues de que `.task` de aqui ya haya mirado. Sin esto, esa
+            // manana el reto no sale y solo se arregla saliendo y volviendo a
+            // entrar. `ChallengeInbox` vive en `UserDefaults`, asi que la propia
+            // escritura avisa.
+            .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+                Task { await reto?.recogerElRecado() }
             }
             // El plan se puede cambiar sin salir de la app —el muro de pago y
             // la fila de Ajustes— y la racha lo lleva fotografiado desde que
@@ -83,7 +99,19 @@ struct RootView: View {
     @ViewBuilder
     private var contenido: some View {
         if let racha, let alarmas {
-            if let fallo = racha.fallo {
+            // El reto va por delante de todo, incluso de un fallo de racha: la
+            // alarma esta sonando y lo unico que la calla es terminarlo. Y va
+            // *en lugar de* la navegacion, no en una hoja encima: de una hoja
+            // se sale deslizando, y de aqui no se sale sin hacer el reto.
+            if let reto, reto.hayReto {
+                PantallaReto(
+                    reto: reto.reto,
+                    hechos: reto.hechos,
+                    segundos: reto.segundos,
+                    estado: reto.estado,
+                    alApagar: { Task { await reto.apagar() } }
+                )
+            } else if let fallo = racha.fallo {
                 AvisoDeFallo(texto: fallo)
             } else {
                 NavegacionPrincipal(racha: racha.datos, modeloDeAlarmas: alarmas, plan: plan)
@@ -102,17 +130,41 @@ struct RootView: View {
         guard racha == nil, falloAlAbrir == nil else { return }
         do {
             let almacen = try Persistence.almacen()
+            // Un solo programador para los dos modelos, y no uno cada uno.
+            // `SystemAlarmScheduler` lleva dentro la sesion de audio que sostiene
+            // el tono durante el reto: contra una instancia distinta de la que
+            // lo arranco, `silenceCurrentAlarm()` no calla nada.
+            let programador = Self.programador()
             alarmas = ModeloDeAlarmas(
                 repositorio: almacen,
-                programador: Self.programador(),
+                programador: programador,
                 plan: plan
             )
             let nueva = ModeloDeRacha(almacen: almacen)
             racha = nueva
+            // Antes de mirar el buzon: `arrancar()` resuelve el reto huerfano de
+            // la sesion anterior, y si el de hoy ya estuviera abierto lo cobraria
+            // como abandonado.
             await nueva.arrancar()
+
+            let elReto = ModeloDeReto(almacen: almacen, programador: programador, racha: nueva)
+            reto = elReto
+            await elReto.recogerElRecado()
         } catch {
             falloAlAbrir = "No se ha podido abrir tu racha."
         }
+    }
+
+    /// Volver del fondo con un reto a medias **no vuelve a cobrar el dia**.
+    ///
+    /// `arrancar()` empieza por `resolverRetoHuerfano()`, y el rastro del reto
+    /// que se esta haciendo ahora mismo es, visto desde el disco, exactamente
+    /// igual que el de una app que murio anoche a mitad. Sin esta guarda, mirar
+    /// la hora en otra app durante el reto rompia la racha.
+    private func alVolverAlFrente() async {
+        if let reto, reto.hayReto { return }
+        if let racha { await racha.arrancar() }
+        await reto?.recogerElRecado()
     }
 
     /// Quien pone las alarmas en el sistema.

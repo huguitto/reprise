@@ -6,8 +6,11 @@ import SwiftUI
 ///
 ///   - **Ajustes y el muro de pago** se abren en hoja desde donde se piden, no
 ///     son secciones. Por eso llevan una equis y no un boton de volver.
-///   - **El reto** no se visita: aparece cuando suena la alarma, y eso lo monta
-///     AlarmScheduler. Hasta que exista, se mira desde la galeria.
+///   - **El reto** no se visita: aparece cuando suena la alarma. Ya no es una
+///     promesa —la app lo saca de verdad, en lugar de esta vista entera— pero
+///     no cuelga de aqui a proposito: ponerlo a un toque de distancia seria dar
+///     la forma de saltarselo. Quien lo decide es `RootView`, leyendo el buzon
+///     que deja el boton de la alerta.
 ///
 /// Ni la racha ni las alarmas son ya estaticas: las dos entran por parametro y
 /// las monta la app leyendo del mismo disco. El ranking sigue inventado.
