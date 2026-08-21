@@ -83,7 +83,11 @@ public enum Reproductor {
         parametros: ParametrosSentadilla,
         conTraza: Bool = false
     ) -> CandidatoDeParametros {
-        let resultados = grabaciones.map {
+        // Las de andar son del otro reto y las califica `ReproductorDePasos`.
+        // Las de trampa, en cambio, valen para los dos: agitar el movil tiene
+        // que quedarse corto tanto aqui como alli.
+        let propias = grabaciones.filter { $0.tipo == .sentadillas || $0.tipo == .trampa }
+        let resultados = propias.map {
             reproduce($0, parametros: parametros, conTraza: conTraza)
         }
         var faltantes = 0, sobrantes = 0, maximoEnTrampas = 0
@@ -93,6 +97,8 @@ public enum Reproductor {
                 if r.error < 0 { faltantes -= r.error } else { sobrantes += r.error }
             case .trampa:
                 maximoEnTrampas = max(maximoEnTrampas, r.contadas)
+            case .pasos:
+                break
             }
         }
         return CandidatoDeParametros(

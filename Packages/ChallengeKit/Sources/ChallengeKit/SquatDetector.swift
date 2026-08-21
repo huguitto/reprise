@@ -86,7 +86,12 @@ public actor SquatDetector: ChallengeDetector {
         vigilante = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: Inactividad.periodoDeRevision)
-                await self?.revisaInactividad()
+                // Sin esto, si el actor se libera sin pasar por `stop()`,
+                // `self?` es nil para siempre, la condicion del bucle no cambia
+                // nunca y esta Task —que retiene el runtime, no el actor— sigue
+                // despertando cada medio segundo el resto de la vida del proceso.
+                guard let self else { return }
+                await self.revisaInactividad()
             }
         }
 
