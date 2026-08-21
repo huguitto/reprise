@@ -3,9 +3,9 @@ import AlarmCore
 
 /// La zona de la esfera cuando hay mas de una alarma encendida.
 ///
-/// Con una sola alarma esto es exactamente lo que habia antes: la esfera, la
-/// etiqueta y las dos pastillas, quietas. Con dos o mas se pasan con el dedo,
-/// una a una, como las fotos del carrete.
+/// Con una sola alarma esto es la esfera de siempre, quieta, con la hora a la
+/// que suena debajo. Con dos o mas se pasan con el dedo, una a una, como las
+/// fotos del carrete.
 ///
 /// El disco grande del centro es lo unico que se mira a las once de la noche, y
 /// ensenaba **una sola** hora dijera lo que dijera el resto de la pantalla:
@@ -67,8 +67,7 @@ public struct CarruselDeAlarmas: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
                     ForEach(alarmas) { alarma in
-                        Diapositiva(alarma: alarma, diametro: diametro,
-                                    conCuandoSuena: alarmas.count > 1)
+                        Diapositiva(alarma: alarma, diametro: diametro)
                             // Cada una ocupa el ancho entero de la pieza: es lo
                             // que hace que el paginado caiga en una alarma y no
                             // a medio camino entre dos.
@@ -124,42 +123,39 @@ public struct CarruselDeAlarmas: View {
     }
 }
 
-/// Una alarma en la zona de la esfera: el disco, la etiqueta y el contexto.
+/// Una alarma en la zona de la esfera: el disco y, debajo, cuando suena.
+///
+/// Debajo del disco estaban tambien la etiqueta y las pastillas de la
+/// frecuencia y el reto. Se fueron para que la pantalla quepa entera sin
+/// desplazarse, y no se pierde nada: los tres datos estan en la fila de esa
+/// misma alarma, ahi abajo, y enteros en la hoja de edicion. Lo que no se podia
+/// ir es la hora a la que suena, que es justo lo que se viene a mirar.
 private struct Diapositiva: View {
     let alarma: Alarm
     let diametro: CGFloat
-    /// Si el pie dice ademas cuando suena esta.
-    ///
-    /// Solo con varias alarmas. Con una sola lo dice ya el titular de la
-    /// pantalla tres centimetros mas arriba, y repetirlo no anade nada.
-    let conCuandoSuena: Bool
 
     var body: some View {
-        VStack(spacing: Espacio.normal) {
+        VStack(spacing: Espacio.medio) {
             EsferaDeReloj(hora: alarma.hour, minuto: alarma.minute, diametro: diametro)
-            VStack(spacing: Espacio.corto) {
-                Text(alarma.label.isEmpty ? "Sin etiqueta" : alarma.label)
-                    .font(Tipografia.cuerpoFuerte)
-                    .foregroundStyle(Paleta.texto)
-                    // A una linea a proposito: todas las diapositivas tienen que
-                    // medir lo mismo, o la pantalla pega un tiron al pasar por
-                    // una etiqueta larga.
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                if conCuandoSuena {
-                    Text(alarma.cuandoSuenaEnPalabras())
-                        .font(Tipografia.pie)
-                        .foregroundStyle(Paleta.textoSuave)
-                        .lineLimit(1)
-                }
-                HStack(spacing: Espacio.corto) {
-                    Pastilla(alarma.weekdays.resumen)
-                    Pastilla(alarma.challenge.nombre, icono: alarma.challenge.simbolo)
-                }
-            }
+            Text(alarma.cuandoSuenaEnPalabras())
+                .font(Tipografia.cuerpoFuerte)
+                .foregroundStyle(Paleta.texto)
+                // A una linea a proposito: todas las diapositivas tienen que
+                // medir lo mismo, o la pantalla pega un tiron al pasar por una
+                // frase larga.
+                .lineLimit(1)
+                .truncationMode(.tail)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(nombreHablado))
+    }
+
+    /// Lo que oye VoiceOver: la esfera sola dice la hora, pero no de que alarma
+    /// es. La etiqueta ya no esta en pantalla y aqui si hace falta.
+    private var nombreHablado: String {
+        let cuando = alarma.cuandoSuenaEnPalabras()
+        return alarma.label.isEmpty ? cuando : "\(alarma.label). \(cuando)"
     }
 }
 
