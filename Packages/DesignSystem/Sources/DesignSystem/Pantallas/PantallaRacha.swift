@@ -5,23 +5,21 @@ import AlarmCore
 ///
 /// El numero de la racha es el protagonista de la pantalla, en matriz de
 /// puntos y del tamano de una mano. Todo lo demas lo explica.
+///
+/// Todo lo que pinta sale de un solo `DatosDeRacha`. No se lee nada de
+/// `DatosDeMentira` aqui dentro a proposito: si la mitad de la pantalla mira a
+/// un sitio y la otra mitad a otro, se puede pasar una racha de 0 y seguir
+/// ensenando las insignias de una racha de 12. Ya pasaba.
 public struct PantallaRacha: View {
-    private let racha: Int
-    private let mejor: Int
-    private let vidas: Int
+    private let datos: DatosDeRacha
     @State private var mostrarAjustes = false
 
-    public init(
-        racha: Int = DatosDeMentira.rachaActual,
-        mejor: Int = DatosDeMentira.mejorRacha,
-        vidas: Int = DatosDeMentira.vidasRestantes
-    ) {
-        self.racha = racha
-        self.mejor = mejor
-        self.vidas = vidas
+    public init(datos: DatosDeRacha = .deMentira) {
+        self.datos = datos
     }
 
-    private var nivel: Nivel { Niveles.nivel(racha: racha) }
+    private var racha: Int { datos.racha }
+    private var nivel: Nivel { datos.nivel }
 
     public var body: some View {
         ScrollView {
@@ -42,7 +40,7 @@ public struct PantallaRacha: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
-        .sheet(isPresented: $mostrarAjustes) { PantallaAjustes() }
+        .sheet(isPresented: $mostrarAjustes) { PantallaAjustes(esPro: datos.plan.esPro) }
     }
 
     // MARK: - Piezas
@@ -52,7 +50,7 @@ public struct PantallaRacha: View {
             TextoDeMatriz("\(racha)", altura: 150, color: Paleta.texto)
             HStack(spacing: Espacio.corto) {
                 Image(systemName: "flame.fill").foregroundStyle(Paleta.acento)
-                Text("días sin fallar")
+                Text(racha == 1 ? "día sin fallar" : "días sin fallar")
                     .font(Tipografia.rotulo)
                     .tracking(Tipografia.abiertoRotulo)
                     .textCase(.uppercase)
@@ -62,7 +60,7 @@ public struct PantallaRacha: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, Espacio.normal)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Racha de \(racha) días sin fallar"))
+        .accessibilityLabel(Text(racha == 1 ? "Racha de 1 día sin fallar" : "Racha de \(racha) días sin fallar"))
     }
 
     private var nivelYProgreso: some View {
@@ -77,37 +75,42 @@ public struct PantallaRacha: View {
                 Spacer()
             }
             BarraDeProgreso(progreso: nivel.progreso(conRacha: racha))
-            if nivel.hasta != nil {
-                Text("Faltan \(nivel.diasQueFaltan(conRacha: racha)) días para el nivel \(nivel.numero + 1).")
-                    .font(Tipografia.pie)
-                    .foregroundStyle(Paleta.textoSuave)
-            } else {
-                Text("No hay nivel por encima de este.")
-                    .font(Tipografia.pie)
-                    .foregroundStyle(Paleta.textoSuave)
-            }
+            Text(textoDelSiguienteNivel)
+                .font(Tipografia.pie)
+                .foregroundStyle(Paleta.textoSuave)
         }
         .padding(Espacio.normal)
         .relieve(.bajo, radio: Radio.medio)
         .padding(.horizontal, Espacio.margen)
     }
 
+    private var textoDelSiguienteNivel: String {
+        guard nivel.hasta != nil else { return "No hay nivel por encima de este." }
+        let faltan = nivel.diasQueFaltan(conRacha: racha)
+        return faltan == 1
+            ? "Falta 1 día para el nivel \(nivel.numero + 1)."
+            : "Faltan \(faltan) días para el nivel \(nivel.numero + 1)."
+    }
+
     private var vidasDelMes: some View {
         HStack(spacing: Espacio.normal) {
             HStack(spacing: Espacio.corto) {
+                // Siempre se dibujan las casillas del tope de Pro, aunque el
+                // plan de turno no de ninguna: al usuario gratis las dos vacias
+                // le ensenan exactamente lo que le falta.
                 ForEach(0..<StreakState.livesPerMonth, id: \.self) { indice in
-                    Image(systemName: indice < vidas ? "heart.fill" : "heart")
+                    Image(systemName: indice < datos.vidas ? "heart.fill" : "heart")
                         .font(.system(size: 20))
-                        .foregroundStyle(indice < vidas ? Paleta.acento : Paleta.textoTenue)
+                        .foregroundStyle(indice < datos.vidas ? Paleta.acento : Paleta.textoTenue)
                 }
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(vidas == 1 ? "Te queda 1 vida" : "Te quedan \(vidas) vidas")
+                Text(tituloDeVidas)
                     .font(Tipografia.cuerpoFuerte)
                     .foregroundStyle(Paleta.texto)
                 // Las dos reglas que mas se malentienden, dichas donde se
                 // miran: una vida no suma dia, y lo que no gastas se pierde.
-                Text("Congelan la racha, no la suben. Se reponen el día 1.")
+                Text(pieDeVidas)
                     .font(Tipografia.pie)
                     .foregroundStyle(Paleta.textoSuave)
             }
@@ -116,20 +119,48 @@ public struct PantallaRacha: View {
         .padding(Espacio.normal)
         .relieve(.bajo, radio: Radio.medio)
         .padding(.horizontal, Espacio.margen)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// El plan gratis no tiene vidas y no las va a tener el dia 1, asi que
+    /// decirle "se reponen el dia 1" es prometerle algo que no llega. Se le dice
+    /// de quien son.
+    private var tituloDeVidas: String {
+        guard datos.plan.limites.vidasAlMes > 0 else { return "Las vidas son de Pro" }
+        switch datos.vidas {
+        case 0: return "No te quedan vidas"
+        case 1: return "Te queda 1 vida"
+        default: return "Te quedan \(datos.vidas) vidas"
+        }
+    }
+
+    private var pieDeVidas: String {
+        datos.plan.limites.vidasAlMes > 0
+            ? "Congelan la racha, no la suben. Se reponen el día 1."
+            : "Con Pro, 2 al mes: congelan la racha en vez de romperla."
     }
 
     private var calendario: some View {
         VStack(alignment: .leading, spacing: Espacio.medio) {
-            Text("Agosto").estiloRotulo()
+            Text(Self.nombreDelMes(datos.hoy)).estiloRotulo()
                 .padding(.horizontal, Espacio.margen + Espacio.mini)
             CalendarioDelMes(
-                registros: DatosDeMentira.mesDeEjemplo,
-                hoy: DatosDeMentira.hoy
+                registros: datos.registrosDelMes,
+                hoy: datos.hoy
             )
             .padding(Espacio.normal)
             .relieve(.bajo, radio: Radio.medio)
             .padding(.horizontal, Espacio.margen)
         }
+    }
+
+    /// El mes en palabras. Estaba escrito a mano —"Agosto"— y en septiembre
+    /// seguia diciendo agosto.
+    static func nombreDelMes(_ dia: Day) -> String {
+        let formato = DateFormatter()
+        formato.locale = Locale(identifier: "es_ES")
+        formato.setLocalizedDateFormatFromTemplate("MMMM")
+        return formato.string(from: dia.date())
     }
 
     private var insignias: some View {
@@ -142,7 +173,7 @@ public struct PantallaRacha: View {
                         SelloDeInsignia(
                             simbolo: insignia.simbolo,
                             nombre: insignia.nombre,
-                            conseguida: insignia.concedida(DatosDeMentira.estadoDeRacha)
+                            conseguida: datos.insignias.contains(insignia)
                         )
                     }
                 }
@@ -158,12 +189,30 @@ public struct PantallaRacha: View {
                 .font(Tipografia.cuerpo)
                 .foregroundStyle(Paleta.textoSuave)
             Spacer()
-            TextoDeMatriz("\(mejor)", altura: 24, color: Paleta.texto)
+            TextoDeMatriz("\(datos.mejor)", altura: 24, color: Paleta.texto)
         }
         .padding(Espacio.normal)
         .relieve(.bajo, radio: Radio.medio)
         .padding(.horizontal, Espacio.margen)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Mejor racha: \(datos.mejor) días"))
     }
+}
+
+/// Los desenlaces del mes que se ensena, indexados por numero de dia.
+///
+/// Fuera de la vista para poder probarla: el fallo que arregla no se ve mirando
+/// la pantalla, se ve cuando la app se cierra sola.
+///
+/// Filtra por ano y mes, y no por el numero de dia suelto, porque el numero
+/// suelto se repite todos los meses. Antes esto era un
+/// `Dictionary(uniqueKeysWithValues:)` sobre `day.day`: en cuanto le llegaran
+/// los registros de dos meses —que es justo lo que devuelve
+/// `DayRecordRepository.records(from:to:)`, un rango— el 3 de julio y el 3 de
+/// agosto chocaban de clave y la app se caia ahi mismo, en la pantalla de racha.
+func desenlacesPorDia(_ registros: [DayRecord], mes hoy: Day) -> [Int: DayOutcome] {
+    let delMes = registros.filter { $0.day.year == hoy.year && $0.day.month == hoy.month }
+    return Dictionary(delMes.map { ($0.day.day, $0.outcome) }, uniquingKeysWith: { _, ultimo in ultimo })
 }
 
 /// El mes en una rejilla de siete columnas, empezando en lunes.
@@ -175,9 +224,7 @@ struct CalendarioDelMes: View {
     let registros: [DayRecord]
     let hoy: Day
 
-    private var porDia: [Int: DayOutcome] {
-        Dictionary(uniqueKeysWithValues: registros.map { ($0.day.day, $0.outcome) })
-    }
+    private var porDia: [Int: DayOutcome] { desenlacesPorDia(registros, mes: hoy) }
 
     /// Cuantas casillas vacias van antes del dia 1.
     private var huecoInicial: Int {
@@ -281,4 +328,14 @@ private struct CeldaDeDia: View {
 
 #Preview("Racha") {
     PantallaRacha().preferredColorScheme(.dark)
+}
+
+#Preview("Racha · usuario nuevo y gratis") {
+    PantallaRacha(datos: DatosDeRacha(
+        estado: StreakState(),
+        plan: .gratis,
+        registrosDelMes: [],
+        hoy: DatosDeMentira.hoy
+    ))
+    .preferredColorScheme(.dark)
 }
