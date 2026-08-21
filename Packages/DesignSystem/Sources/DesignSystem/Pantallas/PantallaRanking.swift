@@ -2,18 +2,16 @@ import SwiftUI
 
 /// Ranking mundial y por paises, con temporada mensual.
 ///
-/// El filtro por pais es de Pro, asi que en la version gratis la pestana existe
-/// pero la lista no se lee. Se ensena tapada en vez de esconderla: que se vea
-/// lo que hay detras es justo el argumento de venta, y esconderlo del todo solo
-/// consigue que nadie sepa que existe.
+/// **El ranking entero es gratis, mundial y por pais.** Hasta el 21/08/2026 el
+/// filtro por pais estaba detras del muro de pago y la pestana de España se
+/// ensenaba borrosa; el usuario lo abrio a todo el mundo. Queda dicho aqui
+/// porque el codigo de tapar la lista se ha ido entero: si vuelve a hacer
+/// falta, se reescribe, no se descomenta.
 public struct PantallaRanking: View {
     @State private var ambito: Ambito = .mundial
-    @State private var mostrarPro = false
-    private let esPro: Bool
+    @State private var mostrarHistorico = false
 
-    public init(esPro: Bool = false) {
-        self.esPro = esPro
-    }
+    public init() {}
 
     enum Ambito: String, CaseIterable {
         case mundial = "Mundial"
@@ -28,14 +26,15 @@ public struct PantallaRanking: View {
         ambito == .mundial ? DatosDeMentira.tuPuestoMundial : DatosDeMentira.tuPuestoEnEspana
     }
 
-    private var tapado: Bool { ambito == .espana && !esPro }
-
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Espacio.amplio) {
                 Cabecera("Ranking", subtitulo: "de agosto") {
-                    Button { } label: { Image(systemName: "clock.arrow.circlepath") }
-                        .buttonStyle(.redondo)
+                    Button { mostrarHistorico = true } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                    .buttonStyle(.redondo)
+                    .accessibilityLabel(Text("Histórico de temporadas"))
                 }
 
                 SelectorSegmentado(opciones: Ambito.allCases, seleccion: $ambito) { $0.rawValue }
@@ -46,43 +45,31 @@ public struct PantallaRanking: View {
                 FilaDeRanking(puesto: tuPuesto)
                     .padding(.horizontal, Espacio.margen)
 
-                ZStack {
-                    VStack(alignment: .leading, spacing: Espacio.medio) {
-                        Text(ambito == .mundial ? "Top mundial" : "Top de España")
-                            .estiloRotulo()
-                            .padding(.horizontal, Espacio.mini)
+                VStack(alignment: .leading, spacing: Espacio.medio) {
+                    Text(ambito == .mundial ? "Top mundial" : "Top de España")
+                        .estiloRotulo()
+                        .padding(.horizontal, Espacio.mini)
 
-                        VStack(spacing: Espacio.corto) {
-                            ForEach(lista) { puesto in
-                                FilaDeRanking(puesto: puesto)
-                            }
+                    VStack(spacing: Espacio.corto) {
+                        ForEach(lista) { puesto in
+                            FilaDeRanking(puesto: puesto)
                         }
                     }
-                    .padding(.horizontal, Espacio.margen)
-                    .blur(radius: tapado ? 7 : 0)
-                    .opacity(tapado ? 0.5 : 1)
-                    .accessibilityHidden(tapado)
-
-                    if tapado {
-                        CarteldePro { mostrarPro = true }
-                    }
                 }
-                .animation(.easeOut(duration: 0.2), value: tapado)
+                .padding(.horizontal, Espacio.margen)
 
-                if !tapado {
-                    VStack(alignment: .leading, spacing: Espacio.mini) {
-                        Text("La temporada acaba el 31. Tu récord histórico se guarda aparte.")
-                        Text("En la versión gratis se ven los cien primeros y tu puesto.")
-                    }
-                    .font(Tipografia.pie)
-                    .foregroundStyle(Paleta.textoTenue)
-                    .padding(.horizontal, Espacio.margen)
+                VStack(alignment: .leading, spacing: Espacio.mini) {
+                    Text("La temporada acaba el 31. Tu récord histórico se guarda aparte.")
+                    Text("Se ven los cien primeros y tu puesto, pagues o no.")
                 }
+                .font(Tipografia.pie)
+                .foregroundStyle(Paleta.textoTenue)
+                .padding(.horizontal, Espacio.margen)
             }
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
-        .sheet(isPresented: $mostrarPro) { PantallaMuroDePago() }
+        .sheet(isPresented: $mostrarHistorico) { PantallaHistoricoDeRanking() }
     }
 }
 
@@ -134,35 +121,10 @@ struct FilaDeRanking: View {
     }
 }
 
-private struct CarteldePro: View {
-    let alPulsar: () -> Void
-
-    var body: some View {
-        VStack(spacing: Espacio.normal) {
-            Image(systemName: "flag.fill")
-                .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(Paleta.acento)
-            Text("Filtrar por país es de Pro")
-                .font(Tipografia.cuerpoFuerte)
-                .foregroundStyle(Paleta.texto)
-            Text("El ranking mundial y tu puesto siguen siendo gratis.")
-                .font(Tipografia.pie)
-                .foregroundStyle(Paleta.textoSuave)
-                .multilineTextAlignment(.center)
-            Button("Ver Pro", action: alPulsar)
-                .buttonStyle(.principal)
-                .frame(maxWidth: 200)
-        }
-        .padding(Espacio.amplio)
-        .relieve(.medio, radio: Radio.grande, color: Paleta.superficieAlta)
-        .padding(.horizontal, Espacio.enorme)
-    }
-}
-
 #Preview("Ranking") {
     PantallaRanking().preferredColorScheme(.dark)
 }
 
-#Preview("Ranking con Pro") {
-    PantallaRanking(esPro: true).preferredColorScheme(.dark)
+#Preview("Ranking · histórico") {
+    PantallaHistoricoDeRanking().preferredColorScheme(.dark)
 }
