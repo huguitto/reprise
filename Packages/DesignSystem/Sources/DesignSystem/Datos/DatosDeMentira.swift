@@ -27,14 +27,12 @@ public enum DatosDeMentira {
     public static var proximaAlarma: Alarm { alarmas[0] }
 
     // MARK: - Tonos
-
-    public static let tonos: [Tone] = [
-        Tone(id: Tone.defaultID, nombre: "El del sistema", fileName: nil, isPro: false),
-        Tone(id: "amanecer", nombre: "Amanecer", fileName: "amanecer.caf", isPro: false),
-        Tone(id: "taller", nombre: "Taller", fileName: "taller.caf", isPro: true),
-        Tone(id: "sirena", nombre: "Sirena", fileName: "sirena.caf", isPro: true),
-        Tone(id: "campana", nombre: "Campana", fileName: "campana.caf", isPro: true)
-    ]
+    //
+    // Aqui habia un catalogo de tonos inventado, y era el que leia la hoja de
+    // alarma para poner el nombre del tono. Como el catalogo de verdad
+    // (`ToneCatalog`) estaba vacio, la app ensenaba "Amanecer" debajo de una
+    // alarma que iba a sonar con el pitido del sistema. Se ha ido entero: los
+    // tonos son de `AlarmScheduler` y solo hay una lista.
 
     // MARK: - Racha
 
