@@ -46,10 +46,9 @@ public struct NavegacionPrincipal: View {
 
     public var body: some View {
         contenido
-            // safeAreaInset y no un ZStack: asi la barra ademas *reserva* su
-            // sitio, y la ultima fila de cada lista se puede leer entera en vez
-            // de quedarse debajo.
-            .safeAreaInset(edge: .bottom, spacing: 0) {
+            // La barra flota sobre las pantallas: el contenido sigue hasta el
+            // borde inferior y no queda una franja vacia reservada debajo.
+            .overlay(alignment: .bottom) {
                 BarraDeSecciones(seleccion: $seccion)
             }
             .fondoDePantalla()
