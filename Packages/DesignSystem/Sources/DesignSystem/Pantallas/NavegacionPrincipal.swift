@@ -43,7 +43,7 @@ public struct NavegacionPrincipal: View {
         switch seccion {
         case .alarmas: PantallaListaDeAlarmas(alIrARacha: { seccion = .racha }, racha: racha)
         case .racha: PantallaRacha(datos: racha)
-        case .ranking: PantallaRanking(esPro: racha.plan.esPro)
+        case .ranking: PantallaRanking()
         }
     }
 }
