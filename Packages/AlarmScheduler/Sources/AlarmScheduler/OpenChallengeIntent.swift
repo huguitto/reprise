@@ -17,8 +17,13 @@ public struct OpenChallengeIntent: LiveActivityIntent {
     public static let description = IntentDescription(
         "Abre RepRise para completar el reto y apagar la alarma."
     )
-    /// `.immediate`: la alarma esta sonando, esto no espera a nada.
-    public static var supportedModes: IntentModes { .foreground(.immediate) }
+    /// El recado tiene que existir **antes** de que la app termine de volver al
+    /// frente. Con `.immediate`, iOS abre la app antes de llamar a `perform()`:
+    /// en un arranque en frio la raiz puede mirar el buzon aun vacio y quedarse
+    /// en la lista de alarmas hasta el siguiente toque. `.deferred` ejecuta la
+    /// escritura primero y lleva la app al frente antes de que termine el
+    /// intent, cerrando esa carrera sin retrasar trabajo real.
+    public static var supportedModes: IntentModes { .foreground(.deferred) }
     /// Que no aparezca en Atajos ni en Spotlight: no tiene sentido fuera de la
     /// alerta de una alarma.
     public static var isDiscoverable: Bool { false }

@@ -44,16 +44,26 @@ public struct PantallaPresentacion: View {
     private var barraDeSaltar: some View {
         HStack {
             Spacer()
-            Button("Saltar", action: alTerminar)
-                .buttonStyle(.texto)
-                // El hueco se reserva siempre: si el boton desaparece en la
-                // ultima pagina, todo lo de abajo pega un salto de 44 puntos.
-                .opacity(pagina == .cuenta ? 0 : 1)
-                .disabled(pagina == .cuenta)
-                .animation(.easeOut(duration: 0.2), value: pagina)
+            // En la ultima pagina el boton no se atenua: se va.
+            //
+            // Estuvo escondido con `opacity(0)` y `disabled`, y eso deja el
+            // boton dentro del arbol de accesibilidad: quien navega con
+            // VoiceOver aterrizaba en la tercera pagina sobre un "Saltar"
+            // que no esta en la pantalla. `accessibilityHidden` tampoco lo
+            // saco —se probo—, asi que no se pinta y punto.
+            //
+            // El hueco de 44 puntos no se pierde por esto: lo reserva el
+            // `frame` de la barra, no el boton. Y el desvanecido sigue,
+            // ahora por la transicion.
+            if pagina != .cuenta {
+                Button("Saltar", action: alTerminar)
+                    .buttonStyle(.texto)
+                    .transition(.opacity)
+            }
         }
         .frame(height: 44)
         .padding(.horizontal, Espacio.margen)
+        .animation(.easeOut(duration: 0.2), value: pagina)
     }
 
     // MARK: - Las tres paginas

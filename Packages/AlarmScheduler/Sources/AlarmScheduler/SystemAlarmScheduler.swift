@@ -36,6 +36,7 @@ import SwiftUI
 public actor SystemAlarmScheduler: AlarmScheduling {
     private let bundle: Bundle
     private let tones: ToneRegistry
+    private let huellas: RegistroDeHuellas
     private let log = Logger(subsystem: "com.hrocha.reprise", category: "alarma")
 
     #if os(iOS)
@@ -45,6 +46,7 @@ public actor SystemAlarmScheduler: AlarmScheduling {
     public init(bundle: Bundle = .main, defaults: UserDefaults = .standard) {
         self.bundle = bundle
         self.tones = ToneRegistry(defaults: defaults)
+        self.huellas = RegistroDeHuellas(defaults: defaults)
     }
 
     // MARK: - Autorizacion
@@ -68,7 +70,7 @@ public actor SystemAlarmScheduler: AlarmScheduling {
         do {
             return try await AlarmManager.shared.requestAuthorization().dominio
         } catch {
-            throw AlarmSchedulerError.fallaDeAlarmKit(descripcion: "\(error)")
+            throw AlarmSchedulerError.falloAlPedirPermiso(descripcion: "\(error)")
         }
         #else
         throw AlarmSchedulerError.alarmKitNoDisponible
@@ -92,6 +94,26 @@ public actor SystemAlarmScheduler: AlarmScheduling {
         }
 
         let plan = try AlarmFirePlan(alarm: alarm)
+
+        // **AlarmKit no sabe actualizar.** Programar sobre un `id` que ya tiene
+        // puesto no reemplaza nada: falla con `com.apple.AlarmKit.Alarm code=0
+        // "(null)"`, sin una palabra de por que. Comprobado contra el iPhone el
+        // 21/08/2026 —el issue #36— porque aqui se daba por hecho lo contrario
+        // y nadie lo habia mirado: como el modelo reprograma todo lo encendido
+        // en cada sincronizacion, fallaba a partir de la segunda de la sesion.
+        // El usuario veia "el sistema no ha podido programar la alarma" y la
+        // alarma sonaba igual, porque ya estaba puesta de la primera vez.
+        //
+        // Asi que hay que cancelar antes de volver a poner. Y como entre las
+        // dos llamadas hay un instante sin alarma, eso solo se hace cuando de
+        // verdad ha cambiado algo: si lo que queremos es lo mismo que ya
+        // pedimos la ultima vez **y** el sistema sigue teniendola, no se toca.
+        let huella = alarm.huellaDeProgramacion
+        if huellas.huella(de: alarm.id) == huella, estaPuesta(alarm.id) == true {
+            log.debug("Alarma \(alarm.id, privacy: .public) ya estaba puesta tal cual; no se toca")
+            return
+        }
+
         let configuracion = AlarmManager.AlarmConfiguration.alarm(
             schedule: plan.alarmKitSchedule,
             attributes: atributos(de: alarm),
@@ -99,15 +121,24 @@ public actor SystemAlarmScheduler: AlarmScheduling {
             sound: sonidoDeAlerta(de: alarm)
         )
 
+        // Sin `try` a proposito: cancelar algo que no existe no es un problema,
+        // y es justo lo que pasa la primera vez que se pone una alarma.
+        try? AlarmManager.shared.cancel(id: alarm.id)
+
         do {
             _ = try await AlarmManager.shared.schedule(id: alarm.id, configuration: configuracion)
         } catch AlarmManager.AlarmError.maximumLimitReached {
             throw AlarmSchedulerError.limiteDeAlarmasAlcanzado
         } catch {
+            // Si no ha entrado, la huella vieja ya no vale: lo que hay puesto
+            // (si hay algo) no es lo que dice el registro. Se borra para que la
+            // proxima sincronizacion vuelva a intentarlo de verdad.
+            huellas.forget(alarmID: alarm.id)
             throw AlarmSchedulerError.fallaDeAlarmKit(descripcion: "\(error)")
         }
 
         tones.record(toneID: alarm.toneID, for: alarm.id)
+        huellas.record(huella, for: alarm.id)
         log.info("Alarma \(alarm.id, privacy: .public) programada a las \(plan.hour):\(plan.minute), repite: \(plan.repeats)")
         #else
         _ = alarm
@@ -125,6 +156,7 @@ public actor SystemAlarmScheduler: AlarmScheduling {
             log.notice("Cancelar la alarma \(alarmID, privacy: .public) fallo: \(String(describing: error))")
         }
         tones.forget(alarmID: alarmID)
+        huellas.forget(alarmID: alarmID)
         #else
         _ = alarmID
         throw AlarmSchedulerError.alarmKitNoDisponible
@@ -136,9 +168,10 @@ public actor SystemAlarmScheduler: AlarmScheduling {
         do {
             let ids = Set(try AlarmManager.shared.alarms.map(\.id))
             tones.prune(keeping: ids)
+            huellas.prune(keeping: ids)
             return ids
         } catch {
-            throw AlarmSchedulerError.fallaDeAlarmKit(descripcion: "\(error)")
+            throw AlarmSchedulerError.noSePudoConsultarElSistema(descripcion: "\(error)")
         }
         #else
         throw AlarmSchedulerError.alarmKitNoDisponible
@@ -202,6 +235,15 @@ extension SystemAlarmScheduler {
         else { return nil }
         try? AlarmManager.shared.stop(id: sonando.id)
         return sonando.id
+    }
+
+    /// Si el sistema tiene puesta esa alarma. `nil` si no ha querido decirlo,
+    /// que no es lo mismo que un "no": con la duda se reprograma, porque el
+    /// error de reprogramar de mas es una alarma que sigue puesta y el de menos
+    /// es no despertarse.
+    private func estaPuesta(_ id: DomainAlarm.ID) -> Bool? {
+        guard let puestas = try? AlarmManager.shared.alarms else { return nil }
+        return puestas.contains { $0.id == id }
     }
 
     private func atributos(de alarm: DomainAlarm) -> AlarmAttributes<ChallengeMetadata> {

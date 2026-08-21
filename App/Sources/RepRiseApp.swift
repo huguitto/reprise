@@ -114,7 +114,13 @@ struct RootView: View {
             } else if let fallo = racha.fallo {
                 AvisoDeFallo(texto: fallo)
             } else {
-                NavegacionPrincipal(racha: racha.datos, modeloDeAlarmas: alarmas, plan: plan)
+                // `FlujoDeEntrada` y no `NavegacionPrincipal` a pelo: la
+                // presentacion estaba escrita, probada y con su bandera en
+                // `UserDefaults`, y no la veia nadie porque la raiz se saltaba
+                // el flujo y entraba directa a la navegacion. Quien instalaba
+                // la app aterrizaba en una lista de alarmas vacia sin que nadie
+                // le hubiera dicho que el boton de apagar pide veinte pasos.
+                FlujoDeEntrada(racha: racha.datos, modeloDeAlarmas: alarmas, plan: plan)
             }
         } else if let falloAlAbrir {
             AvisoDeFallo(texto: falloAlAbrir)

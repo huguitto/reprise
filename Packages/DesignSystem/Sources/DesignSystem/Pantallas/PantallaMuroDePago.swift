@@ -17,6 +17,8 @@ import AlarmCore
 /// que se vende solo cuenta si el usuario lo lee antes de pagar.
 public struct PantallaMuroDePago: View {
     @State private var plan: Plan = .anual
+    @State private var restaurando = false
+    @State private var condiciones = false
     @Environment(\.dismiss) private var cerrar
 
     /// Por que se ha abierto el muro, si es que se ha abierto por topar con
@@ -120,9 +122,21 @@ public struct PantallaMuroDePago: View {
                         cerrar()
                     }
                     .buttonStyle(.principal)
+                    // Los dos botones estaban vacios: se pulsaban y no pasaba
+                    // nada. "Restaurar compras" no puede hacer nada de verdad
+                    // hasta que haya StoreKit —no hay compra que restaurar— asi
+                    // que lo dice, que es distinto de no responder.
                     HStack(spacing: Espacio.amplio) {
-                        Button("Restaurar compras") {}.buttonStyle(.textoMenudo)
-                        Button("Condiciones") {}.buttonStyle(.textoMenudo)
+                        Button("Restaurar compras") { restaurando = true }
+                            .buttonStyle(.textoMenudo)
+                        Button("Condiciones") { condiciones = true }
+                            .buttonStyle(.textoMenudo)
+                    }
+                    if restaurando {
+                        Text("Todavía no hay compras que restaurar: el cobro por App Store aún no está montado.")
+                            .font(Tipografia.pie)
+                            .foregroundStyle(Paleta.textoSuave)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .padding(.horizontal, Espacio.margen)
@@ -142,6 +156,7 @@ public struct PantallaMuroDePago: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
+        .sheet(isPresented: $condiciones) { PantallaCondiciones() }
     }
 }
 
