@@ -9,11 +9,15 @@ public struct PantallaAjustes: View {
     @State private var mostrarPro = false
     @State private var mostrarGaleria = false
     @Environment(\.dismiss) private var cerrar
-    private let esPro: Bool
+    /// El plan de verdad. `nil` = la pantalla se esta mirando suelta (galeria,
+    /// `#Preview`) y se pinta como plan gratis.
+    private let plan: ModeloDelPlan?
 
-    public init(esPro: Bool = false) {
-        self.esPro = esPro
+    public init(plan: ModeloDelPlan? = nil) {
+        self.plan = plan
     }
+
+    private var esPro: Bool { plan?.esPro ?? false }
 
     public var body: some View {
         ScrollView {
@@ -27,6 +31,19 @@ public struct PantallaAjustes: View {
                 if !esPro {
                     Button { mostrarPro = true } label: { tarjetaDePro }
                         .buttonStyle(.plain)
+                } else if let plan {
+                    // Andamio, no funcion: hasta que entre StoreKit no hay
+                    // gestion de suscripcion de verdad, y hace falta poder
+                    // volver a gratis para probar que al dejar de pagar no se
+                    // borra nada. Se va el dia que entren las compras.
+                    Bloque {
+                        FilaDeAjuste(icono: "checkmark.seal", titulo: "RepRise Pro",
+                                     detalle: "Activo (sin cobro: falta StoreKit)") {
+                            Button("Volver a gratis") { plan.volverAGratis() }
+                                .buttonStyle(.textoMenudo)
+                        }
+                    }
+                    .padding(.horizontal, Espacio.margen)
                 }
 
                 seccion("Cuenta") {
@@ -91,7 +108,9 @@ public struct PantallaAjustes: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
-        .sheet(isPresented: $mostrarPro) { PantallaMuroDePago() }
+        .sheet(isPresented: $mostrarPro) {
+            PantallaMuroDePago { plan?.contratarPro() }
+        }
         .sheet(isPresented: $mostrarGaleria) { GaleriaDeDiseno() }
     }
 

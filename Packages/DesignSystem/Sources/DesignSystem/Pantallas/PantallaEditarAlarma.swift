@@ -9,10 +9,39 @@ import AlarmCore
 public struct PantallaEditarAlarma: View {
     @State private var alarma: Alarm
     @State private var moviendo: Movimiento = .hora
+    /// Ancho real de la regla, medido. Antes se adivinaba y la hora no salia
+    /// donde apuntaba el dedo; ver `arrastreDeLaRegla`.
+    @State private var anchoDeLaRegla: CGFloat = 0
     @Environment(\.dismiss) private var cerrar
     private let esNueva: Bool
 
-    public init(alarma: Alarm? = nil, esNueva: Bool = false) {
+    /// Que hacer con la alarma al pulsar "Guardar" y "Eliminar".
+    ///
+    /// Son opcionales porque la hoja tambien se abre suelta desde los
+    /// `#Preview` y desde la galeria, donde no hay nada que guardar. Sueltos,
+    /// los botones solo cierran, que es lo que hacian antes.
+    ///
+    /// `alGuardar` devuelve el resultado y no `Void` a proposito: guardar puede
+    /// no salir, y la hoja **no se cierra** cuando no sale. Cerrarla y ensenar
+    /// el muro de pago detras tiraria todo lo que el usuario acababa de
+    /// rellenar, y al volver de pagar tendria que ponerlo otra vez.
+    private let alGuardar: ((Alarm) async -> ModeloDeAlarmas.Resultado)?
+    private let alEliminar: ((Alarm.ID) async -> Void)?
+    /// El plan, para poder contratar Pro desde el muro sin salir de aqui.
+    private let plan: ModeloDelPlan?
+
+    /// El muro de pago abierto, con el motivo por el que se abrio.
+    @State private var muroDePago: MotivoDelMuro?
+    @State private var guardando = false
+    @State private var errorAlGuardar: String?
+
+    public init(
+        alarma: Alarm? = nil,
+        esNueva: Bool = false,
+        plan: ModeloDelPlan? = nil,
+        alGuardar: ((Alarm) async -> ModeloDeAlarmas.Resultado)? = nil,
+        alEliminar: ((Alarm.ID) async -> Void)? = nil
+    ) {
         // Una alarma nueva empieza en blanco: las siete en punto y sin dias.
         // Heredar la alarma de ejemplo confunde al que la esta creando.
         let inicial = alarma ?? (esNueva
@@ -20,6 +49,9 @@ public struct PantallaEditarAlarma: View {
             : DatosDeMentira.alarmas[0])
         self._alarma = State(initialValue: inicial)
         self.esNueva = esNueva
+        self.plan = plan
+        self.alGuardar = alGuardar
+        self.alEliminar = alEliminar
     }
 
     private enum Movimiento: String, CaseIterable {
@@ -44,6 +76,14 @@ public struct PantallaEditarAlarma: View {
                         Text(alarma.weekdays.resumen)
                             .font(Tipografia.pie)
                             .foregroundStyle(Paleta.textoSuave)
+                        // Avisar antes de que lo elija, no despues de que lo
+                        // guarde: dejarle marcar cinco dias para luego cortarle
+                        // al guardar es hacerle trabajar para nada.
+                        if let plan, !plan.plan.limites.permiteRepeticionPorDias {
+                            Text("Repetir en días concretos es de Pro. Sin ello suena una vez y se apaga sola.")
+                                .font(Tipografia.pie)
+                                .foregroundStyle(Paleta.textoTenue)
+                        }
                     }
                 }
 
@@ -72,13 +112,27 @@ public struct PantallaEditarAlarma: View {
                 }
 
                 VStack(spacing: Espacio.medio) {
-                    // Todavia no guardan ni borran nada: la persistencia es de
-                    // otro paquete. Pero cierran, que es lo minimo honesto —
-                    // un boton que no hace absolutamente nada deja al usuario
-                    // dandole sin entender por que no pasa nada.
-                    Button("Guardar") { cerrar() }.buttonStyle(.principal)
+                    Button("Guardar", action: guardar)
+                        .buttonStyle(.principal)
+                        .disabled(guardando)
+
+                    if let errorAlGuardar {
+                        Text(errorAlGuardar)
+                            .font(Tipografia.pie)
+                            .foregroundStyle(Paleta.acento)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     if !esNueva {
-                        Button("Eliminar la alarma") { cerrar() }.buttonStyle(.texto)
+                        Button("Eliminar la alarma") {
+                            let id = alarma.id
+                            Task {
+                                await alEliminar?(id)
+                                cerrar()
+                            }
+                        }
+                        .buttonStyle(.texto)
+                        .disabled(guardando)
                     }
                 }
                 .padding(.horizontal, Espacio.margen)
@@ -91,6 +145,33 @@ public struct PantallaEditarAlarma: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
+        .sheet(item: $muroDePago) { muro in
+            PantallaMuroDePago(motivo: muro.restriccion) {
+                plan?.contratarPro()
+            }
+        }
+    }
+
+    // MARK: - Guardar
+
+    /// Guardar es una peticion, no un hecho: puede toparse con el plan o con el
+    /// disco. Solo se cierra la hoja si la alarma queda guardada de verdad.
+    private func guardar() {
+        guard let alGuardar else { cerrar(); return }
+        guardando = true
+        errorAlGuardar = nil
+        let queGuardar = alarma
+        Task {
+            switch await alGuardar(queGuardar) {
+            case .guardada:
+                cerrar()
+            case let .loImpideElPlan(motivo):
+                muroDePago = MotivoDelMuro(motivo)
+            case .noSeHaPodidoGuardar:
+                errorAlGuardar = "No se ha podido guardar. Inténtalo otra vez."
+            }
+            guardando = false
+        }
     }
 
     // MARK: - Hora
@@ -104,6 +185,11 @@ public struct PantallaEditarAlarma: View {
                     .frame(maxWidth: 220)
 
                 ReglaHorizontal(progreso: progresoDeLaRegla)
+                    .onGeometryChange(for: CGFloat.self) { medida in
+                        medida.size.width
+                    } action: { ancho in
+                        anchoDeLaRegla = ancho
+                    }
                     .contentShape(Rectangle())
                     .gesture(arrastreDeLaRegla)
             }
@@ -119,15 +205,22 @@ public struct PantallaEditarAlarma: View {
         }
     }
 
-    /// Arrastrar sobre la regla mueve la hora o el minuto. La regla ocupa el
-    /// ancho de la pantalla menos los margenes; se calcula sobre la posicion
-    /// absoluta del dedo, no sobre el desplazamiento, para que no se acumule
-    /// error al arrastrar despacio.
+    /// Arrastrar sobre la regla mueve la hora o el minuto. Se calcula sobre la
+    /// posicion absoluta del dedo, no sobre el desplazamiento, para que no se
+    /// acumule error al arrastrar despacio.
+    ///
+    /// El ancho viene medido (`anchoDeLaRegla`) y no estimado. Antes se sacaba
+    /// de donde habia caido el dedo la primera vez —`max(startLocation.x + 1,
+    /// 300)`—, y eso hacia dos cosas raras: la hora no era la de la rayita que
+    /// tocabas (en el centro salian las 13:00, no las 12:00) y el recorrido
+    /// cambiaba segun por donde empezaras a arrastrar. Es el mismo ancho con el
+    /// que `ReglaHorizontal` coloca su bolita, asi que ahora dedo y bolita van
+    /// juntos.
     private var arrastreDeLaRegla: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { gesto in
-                let ancho = max(gesto.startLocation.x + 1, 300)
-                let fraccion = min(max(gesto.location.x / ancho, 0), 1)
+                guard anchoDeLaRegla > 0 else { return }
+                let fraccion = min(max(gesto.location.x / anchoDeLaRegla, 0), 1)
                 switch moviendo {
                 case .hora: alarma.hour = Int((fraccion * 23).rounded())
                 case .minuto: alarma.minute = Int((fraccion * 59).rounded())

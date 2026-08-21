@@ -21,13 +21,26 @@ public struct FlujoDeEntrada: View {
     @State private var vistaSoloAhora = false
 
     private let recordar: Bool
+    /// Los modelos de la app, para pasarselos a `NavegacionPrincipal` al
+    /// aterrizar. Sin esto la app entraria a datos de mentira: los parametros
+    /// de `NavegacionPrincipal` tienen valor por defecto para los `#Preview`, y
+    /// no pasarselos aqui no da error de compilacion, solo una app que no lee
+    /// el disco de nadie.
+    private let modeloDeAlarmas: ModeloDeAlarmas?
+    private let plan: ModeloDelPlan?
 
     /// - Parameter recordar: si es `false`, el flujo no escribe ni lee la
     ///   bandera. Es lo que usa la galeria de diseño: alli la presentacion hay
     ///   que poder verla las veces que haga falta, y verla no es haberla
     ///   pasado.
-    public init(recordar: Bool = true) {
+    public init(
+        recordar: Bool = true,
+        modeloDeAlarmas: ModeloDeAlarmas? = nil,
+        plan: ModeloDelPlan? = nil
+    ) {
         self.recordar = recordar
+        self.modeloDeAlarmas = modeloDeAlarmas
+        self.plan = plan
     }
 
     /// La clave, en un sitio con nombre para que quien tenga que borrarla
@@ -40,7 +53,7 @@ public struct FlujoDeEntrada: View {
     public var body: some View {
         ZStack {
             if yaPasada {
-                NavegacionPrincipal()
+                NavegacionPrincipal(modeloDeAlarmas: modeloDeAlarmas, plan: plan)
                     .transition(.opacity)
             } else {
                 PantallaPresentacion(alTerminar: pasar)

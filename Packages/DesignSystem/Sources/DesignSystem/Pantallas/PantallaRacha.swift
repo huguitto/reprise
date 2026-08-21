@@ -9,16 +9,22 @@ public struct PantallaRacha: View {
     private let racha: Int
     private let mejor: Int
     private let vidas: Int
+    /// Esta pantalla no usa el plan para nada suyo: solo se lo pasa a Ajustes,
+    /// que es de donde cuelga. Ajustes se abre en hoja desde aqui y desde
+    /// ningun otro sitio.
+    private let plan: ModeloDelPlan?
     @State private var mostrarAjustes = false
 
     public init(
         racha: Int = DatosDeMentira.rachaActual,
         mejor: Int = DatosDeMentira.mejorRacha,
-        vidas: Int = DatosDeMentira.vidasRestantes
+        vidas: Int = DatosDeMentira.vidasRestantes,
+        plan: ModeloDelPlan? = nil
     ) {
         self.racha = racha
         self.mejor = mejor
         self.vidas = vidas
+        self.plan = plan
     }
 
     private var nivel: Nivel { Niveles.nivel(racha: racha) }
@@ -42,7 +48,7 @@ public struct PantallaRacha: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
-        .sheet(isPresented: $mostrarAjustes) { PantallaAjustes() }
+        .sheet(isPresented: $mostrarAjustes) { PantallaAjustes(plan: plan) }
     }
 
     // MARK: - Piezas

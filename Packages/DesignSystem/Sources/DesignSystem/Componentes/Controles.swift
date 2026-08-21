@@ -5,10 +5,23 @@ import SwiftUI
 /// No usa el `Toggle` del sistema a proposito. El de iOS es una pieza de
 /// material distinto y en medio de esta pantalla canta como un injerto.
 public struct Interruptor: View {
-    @Binding private var encendido: Bool
+    private let encendido: Bool
+    private let alCambiar: (Bool) -> Void
 
+    /// El interruptor sobre un estado que es de quien lo pinta.
     public init(encendido: Binding<Bool>) {
-        self._encendido = encendido
+        self.encendido = encendido.wrappedValue
+        self.alCambiar = { encendido.wrappedValue = $0 }
+    }
+
+    /// El interruptor que **pide** el cambio en vez de hacerlo.
+    ///
+    /// Hace falta cuando lo de detras no es una variable sino una escritura en
+    /// disco: ahi no hay `Binding` que valga, porque el valor nuevo no se puede
+    /// dar por bueno hasta que el almacen diga que si.
+    public init(encendido: Bool, alCambiar: @escaping (Bool) -> Void) {
+        self.encendido = encendido
+        self.alCambiar = alCambiar
     }
 
     private let ancho: CGFloat = 56
@@ -17,7 +30,7 @@ public struct Interruptor: View {
     public var body: some View {
         Button {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
-                encendido.toggle()
+                alCambiar(!encendido)
             }
         } label: {
             ZStack(alignment: encendido ? .trailing : .leading) {
