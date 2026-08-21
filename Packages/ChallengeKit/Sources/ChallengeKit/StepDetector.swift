@@ -13,17 +13,6 @@ import CoreMotion
 /// alguien echa a andar hacia el bano con el movil en la mano. HealthKit daria
 /// el mismo dato pero con minutos de retraso: inservible para apagar una alarma.
 public actor StepDetector: ChallengeDetector {
-
-    /// Pasos por segundo por encima de los cuales dejamos de creernos el dato.
-    ///
-    /// Correr de verdad son ~3 pasos/s; 5 es un techo generoso a proposito. No
-    /// pretende cazar al tramposo listo —eso es un pozo sin fondo y esta
-    /// descartado por producto—, solo evitar que una sacudida rapida que el
-    /// podometro interprete como zancadas resuelva el reto entero de golpe. Ante
-    /// la duda afloja, porque no contarle los pasos a quien esta andando de
-    /// verdad es mucho peor.
-    public static let cadenciaMaxima: Double = 5
-
     public let goal: Int
     public nonisolated let progress: AsyncStream<ChallengeProgress>
 
@@ -31,16 +20,17 @@ public actor StepDetector: ChallengeDetector {
     private let continuacion: AsyncStream<ChallengeProgress>.Continuation
     private var consumo: Task<Void, Never>?
     private var vigilante: Task<Void, Never>?
+    private var animador: Task<Void, Never>?
 
-    private var contados = 0
-    private var brutosAnteriores = 0
-    private var instanteAnterior: ContinuousClock.Instant?
+    private var contador: ContadorDePasos
+    private var mostrados = 0
     private var ultimoAvance = ContinuousClock.now
     private var parado = false
     private var enMarcha = false
 
     public init(goal: Int) {
         self.goal = goal
+        self.contador = ContadorDePasos(objetivo: goal)
         var cont: AsyncStream<ChallengeProgress>.Continuation!
         self.progress = AsyncStream { cont = $0 }
         self.continuacion = cont
@@ -59,14 +49,8 @@ public actor StepDetector: ChallengeDetector {
         }
 
         enMarcha = true
-        contados = 0
-        brutosAnteriores = 0
-        // El reloj de cadencia arranca aqui, no en la primera entrega del
-        // podometro. El coprocesador entrega a rachas y la primera puede tardar
-        // varios segundos: si midieramos el intervalo desde ella, esa primera
-        // tanda —pasos legitimos, ya dados— se recortaria por haber llegado
-        // junta. Recortarle pasos a quien esta andando es el fallo caro.
-        instanteAnterior = .now
+        contador = ContadorDePasos(objetivo: goal)
+        mostrados = 0
         ultimoAvance = .now
         parado = false
 
@@ -104,35 +88,51 @@ public actor StepDetector: ChallengeDetector {
         podometro.stopUpdates()
         consumo?.cancel(); consumo = nil
         vigilante?.cancel(); vigilante = nil
+        animador?.cancel(); animador = nil
         continuacion.finish()
     }
 
     /// `numberOfSteps` es acumulado desde `desde`, no un incremento.
     private func registra(brutos: Int) {
-        guard enMarcha, brutos > brutosAnteriores else { return }
+        guard enMarcha, contador.registrar(acumulados: brutos) else { return }
         let ahora = ContinuousClock.now
-        let transcurrido = (instanteAnterior ?? ahora).duration(to: ahora).ensegundos
-        instanteAnterior = ahora
-
-        let nuevos = brutos - brutosAnteriores
-        brutosAnteriores = brutos
-
-        // Medio segundo de holgura porque el podometro entrega a rachas: si la
-        // primera tanda llega junta, no queremos recortarla por llegar junta.
-        let tope = max(1, Int((transcurrido + 0.5) * Self.cadenciaMaxima))
-        let creidos = min(nuevos, tope)
-        guard creidos > 0 else { return }
-
-        contados = min(goal, contados + creidos)
         ultimoAvance = ahora
         parado = false
-        emite()
+        animarPasosPendientes()
 
-        if contados >= goal { podometro.stopUpdates() }
+        if contador.terminado { podometro.stopUpdates() }
+    }
+
+    /// Core Motion agrupa varios pasos en cada callback. El dato se conserva
+    /// tal cual, pero se presenta de uno en uno para que la cifra y la vibracion
+    /// den feedback continuo en vez de saltar, por ejemplo, de 0 a 8.
+    private func animarPasosPendientes() {
+        guard animador == nil else { return }
+        animador = Task { [weak self] in
+            await self?.mostrarPasosPendientes()
+        }
+    }
+
+    private func mostrarPasosPendientes() async {
+        defer { animador = nil }
+
+        while enMarcha, mostrados < contador.contados, !Task.isCancelled {
+            mostrados += 1
+            emite()
+
+            guard mostrados < goal else { return }
+            do {
+                // Algo mas rapido que un paso normal para alcanzar al dato real
+                // si el podometro entrega una tanda grande, sin parecer un salto.
+                try await Task.sleep(for: .milliseconds(120))
+            } catch {
+                return
+            }
+        }
     }
 
     private func revisaInactividad() {
-        guard enMarcha, contados < goal else { return }
+        guard enMarcha, !contador.terminado else { return }
         let inactivo = ultimoAvance.duration(to: .now) >= Inactividad.umbral
         guard inactivo != parado else { return }
         parado = inactivo
@@ -141,8 +141,33 @@ public actor StepDetector: ChallengeDetector {
 
     private func emite() {
         continuacion.yield(
-            ChallengeProgress(completed: contados, goal: goal, isStalled: parado)
+            ChallengeProgress(completed: mostrados, goal: goal, isStalled: parado)
         )
     }
 }
 #endif
+
+/// Convierte las lecturas acumuladas de `CMPedometer` en progreso del reto.
+///
+/// El podometro no entrega una muestra por paso: agrupa varios y puede mandar
+/// tandas muy seguidas. Por eso no se puede limitar cada tanda usando el tiempo
+/// entre callbacks; hacerlo descartaba pasos reales de manera permanente.
+struct ContadorDePasos {
+    let objetivo: Int
+    private(set) var contados = 0
+    private var acumuladosAnteriores = 0
+
+    init(objetivo: Int) {
+        self.objetivo = objetivo
+    }
+
+    var terminado: Bool { contados >= objetivo }
+
+    mutating func registrar(acumulados: Int) -> Bool {
+        guard acumulados > acumuladosAnteriores else { return false }
+        let nuevos = acumulados - acumuladosAnteriores
+        acumuladosAnteriores = acumulados
+        contados = min(objetivo, contados + nuevos)
+        return true
+    }
+}
