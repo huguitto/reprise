@@ -28,6 +28,10 @@ public struct FlujoDeEntrada: View {
     /// el disco de nadie.
     private let modeloDeAlarmas: ModeloDeAlarmas?
     private let plan: ModeloDelPlan?
+    /// La racha de verdad. Por el mismo motivo que las alarmas: sin ella el
+    /// recien llegado aterriza en una racha de mentira de 12 dias que no ha
+    /// hecho, y el primer numero que ve de la app es falso.
+    private let racha: DatosDeRacha
 
     /// - Parameter recordar: si es `false`, el flujo no escribe ni lee la
     ///   bandera. Es lo que usa la galeria de diseño: alli la presentacion hay
@@ -35,10 +39,12 @@ public struct FlujoDeEntrada: View {
     ///   pasado.
     public init(
         recordar: Bool = true,
+        racha: DatosDeRacha = .deMentira,
         modeloDeAlarmas: ModeloDeAlarmas? = nil,
         plan: ModeloDelPlan? = nil
     ) {
         self.recordar = recordar
+        self.racha = racha
         self.modeloDeAlarmas = modeloDeAlarmas
         self.plan = plan
     }
@@ -53,7 +59,7 @@ public struct FlujoDeEntrada: View {
     public var body: some View {
         ZStack {
             if yaPasada {
-                NavegacionPrincipal(modeloDeAlarmas: modeloDeAlarmas, plan: plan)
+                NavegacionPrincipal(racha: racha, modeloDeAlarmas: modeloDeAlarmas, plan: plan)
                     .transition(.opacity)
             } else {
                 PantallaPresentacion(alTerminar: pasar)

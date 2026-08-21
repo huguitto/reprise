@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import AlarmCore
+import AlarmScheduler
 
 /// Crear o editar una alarma.
 ///
@@ -31,8 +32,13 @@ public struct PantallaEditarAlarma: View {
     /// El plan, para poder contratar Pro desde el muro sin salir de aqui.
     private let plan: ModeloDelPlan?
 
-    /// El muro de pago abierto, con el motivo por el que se abrio.
-    @State private var muroDePago: MotivoDelMuro?
+    /// La hoja que hay abierta encima de esta, si hay alguna.
+    ///
+    /// Una sola `@State` y una sola `.sheet` para los dos destinos —el muro de
+    /// pago y los tonos— para que no exista el estado de "las dos abiertas a la
+    /// vez", que con dos banderas sueltas es representable y lo resuelve el
+    /// orden de los modificadores.
+    @State private var hoja: Hoja?
     @State private var guardando = false
     @State private var errorAlGuardar: String?
 
@@ -48,8 +54,13 @@ public struct PantallaEditarAlarma: View {
         // rato", "a esta misma hora manana"— y ademas deja la esfera lista para
         // empujarla con el dedo desde un sitio que se reconoce. Sin dias: eso si
         // hay que elegirlo a proposito.
+        // El reto y el tono de la alarma nueva son los que diga Ajustes, no
+        // los de fabrica. Es lo que hace que aquellas dos filas signifiquen
+        // algo: antes se movian y no llegaban a ninguna alarma.
         let inicial = alarma ?? (esNueva
-            ? Alarm(hour: Self.ahora.hora, minute: Self.ahora.minuto, challenge: .pasos)
+            ? Alarm(hour: Self.ahora.hora, minute: Self.ahora.minuto,
+                    challenge: PreferenciasDeAlarma.reto(),
+                    toneID: PreferenciasDeAlarma.tono())
             : DatosDeMentira.alarmas[0])
         self._alarma = State(initialValue: inicial)
         self.esNueva = esNueva
@@ -105,12 +116,19 @@ public struct PantallaEditarAlarma: View {
                 seccion("Detalles") {
                     VStack(spacing: Espacio.medio) {
                         Bloque {
-                            FilaDeAjuste(icono: "speaker.wave.2", titulo: "Tono",
-                                         detalle: nombreDelTono) {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(Paleta.textoTenue)
+                            // Hasta el 21/08/2026 esta fila llevaba su galon de
+                            // "sigue por aqui" y no seguia a ningun sitio: no
+                            // habia pantalla de tonos. El galon en una fila que
+                            // no lleva a nada es peor que no tener la fila.
+                            Button { hoja = .tonos } label: {
+                                FilaDeAjuste(icono: "speaker.wave.2", titulo: "Tono",
+                                             detalle: nombreDelTono) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(Paleta.textoTenue)
+                                }
                             }
+                            .buttonStyle(.plain)
                         }
                         CampoDeTexto("Etiqueta", texto: $alarma.label)
                     }
@@ -150,11 +168,24 @@ public struct PantallaEditarAlarma: View {
             .padding(.vertical, Espacio.amplio)
         }
         .fondoDePantalla()
-        .sheet(item: $muroDePago) { muro in
-            PantallaMuroDePago(motivo: muro.restriccion) {
-                plan?.contratarPro()
+        .sheet(item: $hoja) { cual in
+            switch cual {
+            case .tonos:
+                PantallaTonos(toneID: $alarma.toneID, plan: plan)
+            case let .muro(restriccion):
+                PantallaMuroDePago(motivo: restriccion) {
+                    plan?.contratarPro()
+                }
             }
         }
+    }
+
+    /// Lo que se puede abrir encima de la hoja de alarma.
+    private enum Hoja: Identifiable, Hashable {
+        case tonos
+        case muro(RestriccionDelPlan)
+
+        var id: Self { self }
     }
 
     // MARK: - Guardar
@@ -171,7 +202,7 @@ public struct PantallaEditarAlarma: View {
             case .guardada:
                 cerrar()
             case let .loImpideElPlan(motivo):
-                muroDePago = MotivoDelMuro(motivo)
+                hoja = .muro(motivo)
             case .noSeHaPodidoGuardar:
                 errorAlGuardar = "No se ha podido guardar. Inténtalo otra vez."
             }
@@ -194,11 +225,6 @@ public struct PantallaEditarAlarma: View {
                     .frame(maxWidth: 220)
 
                 ReglaHorizontal(progreso: progresoDeLaRegla)
-                    .onGeometryChange(for: CGFloat.self) { medida in
-                        medida.size.width
-                    } action: { ancho in
-                        anchoDeLaRegla = ancho
-                    }
                     .contentShape(Rectangle())
                     .onGeometryChange(for: CGFloat.self) { medida in
                         medida.size.width
@@ -248,8 +274,16 @@ public struct PantallaEditarAlarma: View {
             }
     }
 
+    /// El nombre del tono que va a sonar de verdad.
+    ///
+    /// Sale de `ToneCatalog`, no de `DatosDeMentira`: el catalogo inventado
+    /// tenia tonos que no existen, asi que esta fila podia poner "Amanecer"
+    /// debajo de una alarma que iba a sonar con el pitido del sistema. Y es
+    /// `tonoEfectivo` y no `tono` para que diga la verdad tambien cuando el
+    /// fichero no ha llegado al bundle: en ese caso suena el del sistema y aqui
+    /// pone el del sistema.
     private var nombreDelTono: String {
-        DatosDeMentira.tonos.first { $0.id == alarma.toneID }?.nombre ?? "El del sistema"
+        ToneCatalog.tonoEfectivo(id: alarma.toneID).nombre
     }
 
     // MARK: - Andamiaje

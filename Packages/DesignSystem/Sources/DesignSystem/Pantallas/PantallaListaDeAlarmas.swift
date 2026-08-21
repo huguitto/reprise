@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 import AlarmCore
 
 /// Lista de alarmas. Es la pantalla que se ve de dia, con calma, y por eso es
@@ -175,10 +176,32 @@ public struct PantallaListaDeAlarmas: View {
         modelo.alarmas.first { $0.id == alarma.id } ?? alarma
     }
 
+    /// Cuando suena la proxima, de verdad.
+    ///
+    /// Ponia "Mañana a las 7:30" pasara lo que pasara: a las seis de la manana,
+    /// con la alarma puesta a las siete de ese mismo dia, la app decia que
+    /// sonaba manana. Quien lo cuenta ahora es `Alarm.proximaVez`, que sabe de
+    /// dias de la semana y esta probado en `AlarmCore`.
     private var subtituloDeCabecera: String {
         if modelo.cargando { return "Un momento" }
         guard let proxima else { return "Ninguna puesta" }
-        return String(format: "Mañana a las %d:%02d", proxima.hour, proxima.minute)
+        guard let cuando = proxima.proximaVez() else {
+            // No deberia pasar nunca. Antes que inventarse un dia, la hora sola.
+            return String(format: "A las %d:%02d", proxima.hour, proxima.minute)
+        }
+        return "\(Self.cuandoSuena(cuando)) a las \(String(format: "%d:%02d", proxima.hour, proxima.minute))"
+    }
+
+    /// "Hoy", "Mañana" o el nombre del dia. Mas alla de una semana no hace
+    /// falta mas detalle: el dia de la semana ya es unico.
+    static func cuandoSuena(_ fecha: Date, desde ahora: Date = Date(), calendario: Calendar = .current) -> String {
+        if calendario.isDateInToday(fecha) { return "Hoy" }
+        if calendario.isDateInTomorrow(fecha) { return "Mañana" }
+        let formato = DateFormatter()
+        formato.locale = Locale(identifier: "es_ES")
+        formato.dateFormat = "EEEE"
+        // "El sábado", no "sábado": la cabecera es una frase, no una etiqueta.
+        return "El \(formato.string(from: fecha))"
     }
 }
 
