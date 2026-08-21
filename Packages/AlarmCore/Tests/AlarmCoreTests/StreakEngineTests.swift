@@ -103,6 +103,6 @@ struct StreakEngineTests {
             alarmID: alarmID, challenge: .sentadillas, to: StreakState(current: 4),
             plan: .pro
         )
-        #expect(result.record.outcome == .salvadoPorVida(.appTerminada))
+        #expect(result.record?.outcome == .salvadoPorVida(.appTerminada))
     }
 }

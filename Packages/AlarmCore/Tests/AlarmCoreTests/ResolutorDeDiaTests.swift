@@ -23,12 +23,14 @@ private actor AlmacenFalso: AlmacenDeRachas {
     func rachaActual() throws -> StreakState { estado }
     func retoPendiente() throws -> PendingChallenge? { pendiente }
 
-    func confirmarDia(estado nuevo: StreakState, registro: DayRecord) throws {
+    func confirmarDia(estado nuevo: StreakState, registro: DayRecord?) throws {
         confirmaciones += 1
         // Todo o nada: si falla, no se escribe ni media escritura.
         if falla { throw DiscoRoto() }
         estado = nuevo
-        registros[registro.day] = registro
+        // `nil` = el dia ya estaba contado. Se cierra el rastro y no se toca el
+        // historial, igual que hace el almacen de verdad.
+        if let registro { registros[registro.day] = registro }
         pendiente = nil
     }
 
@@ -108,8 +110,8 @@ struct ResolutorDeDiaTests {
 
         let r = try #require(try await resolutor.resolverRetoHuerfano())
 
-        #expect(r.registro.outcome == .fallado(.appTerminada))
-        #expect(r.registro.challenge == .sentadillas, "el registro conserva que reto se abandono")
+        #expect(r.registro?.outcome == .fallado(.appTerminada))
+        #expect(r.registro?.challenge == .sentadillas, "el registro conserva que reto se abandono")
         #expect(r.estado.current == 0, "sin vidas, matar la app rompe la racha")
         #expect(await almacen.pendiente == nil)
     }
@@ -125,7 +127,7 @@ struct ResolutorDeDiaTests {
         let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
         let r = try #require(try await resolutor.resolverRetoHuerfano())
 
-        #expect(r.registro.outcome == .salvadoPorVida(.appTerminada))
+        #expect(r.registro?.outcome == .salvadoPorVida(.appTerminada))
         #expect(r.estado.current == 12)
         #expect(r.estado.livesRemaining == 1)
     }
@@ -159,7 +161,7 @@ struct ResolutorDeDiaTests {
         let resolutor = ResolutorDeDia(almacen: almacen, plan: { .pro })
 
         let r = try #require(try await resolutor.resolverRetoHuerfano())
-        #expect(r.registro.day == dia(5), "el fallo es del dia 5, no del dia que se abre la app")
+        #expect(r.registro?.day == dia(5), "el fallo es del dia 5, no del dia que se abre la app")
     }
 
     @Test("Un dia ya contado no se cuenta otra vez, pero el rastro se cierra igual")

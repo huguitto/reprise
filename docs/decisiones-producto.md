@@ -52,7 +52,14 @@ sensores. El boton "Stop" del sistema tampoco se puede ocultar.
 ## Ranking
 
 - Mundial y por paises.
-- Temporada mensual, con el record historico aparte. *(Asumido por Claude ante la
+- **El ranking entero se ve gratis, mundial y por pais (21/08/2026).** Antes el
+  filtro por pais era de Pro y la lista de tu pais se ensenaba borrosa detras de
+  un cartel de venta. El usuario lo abrio: para ver el ranking no hace falta
+  pagar.
+- Temporada mensual, con el record historico aparte. Las temporadas cerradas se
+  miran desde el boton de reloj de la pantalla de ranking, y tambien son
+  gratis: lo que sigue siendo de Pro son las estadisticas de la racha, no el
+  historico del ranking. *(Lo de la temporada mensual lo asumio Claude ante la
   falta de respuesta; pendiente de confirmacion del usuario.)*
 - **Sin antifraude.** Decision explicita: cambiar la hora del movil para inflar la
   racha se queda sin castigo. Cita del usuario: "la app es para ayudar en la
@@ -71,8 +78,13 @@ vidas**: el primer fallo rompe la racha.
 
 **Pro** (~3,99 EUR/mes o 24,99 EUR/ano): alarmas ilimitadas, repeticion por dias
 de la semana, las 2 vidas del mes, catalogo completo de tonos, estadisticas e
-historico completo, filtros de ranking por pais, insignias y temas exclusivos,
-subir la dificultad del reto (nunca bajarla).
+historico completo de la racha, insignias y temas exclusivos, subir la
+dificultad del reto (nunca bajarla).
+
+**Los filtros de ranking por pais dejan de ser de Pro (21/08/2026).** Estaban en
+esta lista desde el principio; el usuario decidio que el ranking se ve entero
+sin pagar. Lo unico que sigue diferenciando a gratis en el ranking es la
+profundidad de la lista: cien primeros y tu puesto.
 
 **Las vidas pasan a ser de Pro (21/08/2026).** Hasta esa fecha la regla era "se
 vende todo lo que rodea a la racha, nunca la racha misma" y las 2 vidas eran

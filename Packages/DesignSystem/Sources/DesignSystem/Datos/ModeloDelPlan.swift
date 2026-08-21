@@ -19,7 +19,18 @@ public final class ModeloDelPlan {
     public private(set) var plan: PlanDeSuscripcion
 
     private let defaults: UserDefaults
-    private static let clave = "reprise.plan"
+
+    /// **La misma clave que lee `FuenteDelPlan`**, en la capa de app, que es por
+    /// donde el motor de rachas pregunta el plan para repartir vidas. Tienen que
+    /// ser la misma o se parte en dos: el usuario contrataria Pro desde el muro,
+    /// veria sus alarmas desbloqueadas, y la racha le seguiria contando como
+    /// gratis y sin vidas. El nombre es feo a proposito, para que se vea que es
+    /// provisional al mirar el fichero de preferencias; se va con StoreKit.
+    ///
+    /// Esto es una constante duplicada a mano porque no hay donde ponerla:
+    /// `DesignSystem` no ve la capa de app, y bajarla a `Contracts.swift` seria
+    /// meter una clave de `UserDefaults` en el dominio.
+    private static let clave = "plan-provisional-sin-storekit"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

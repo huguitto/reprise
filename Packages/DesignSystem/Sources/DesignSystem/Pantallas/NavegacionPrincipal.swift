@@ -9,10 +9,15 @@ import SwiftUI
 ///   - **El reto** no se visita: aparece cuando suena la alarma, y eso lo monta
 ///     AlarmScheduler. Hasta que exista, se mira desde la galeria.
 ///
-/// Las alarmas ya son de verdad: se guardan y se releen del disco que le pase
-/// la app. Racha y ranking siguen con datos inventados.
+/// Ni la racha ni las alarmas son ya estaticas: las dos entran por parametro y
+/// las monta la app leyendo del mismo disco. El ranking sigue inventado.
 public struct NavegacionPrincipal: View {
     @State private var seccion: Seccion
+
+    /// El estado de racha de verdad. Por defecto, el de mentira, para que los
+    /// `#Preview` y la galeria de diseno sigan funcionando sueltos.
+    private let racha: DatosDeRacha
+
     /// El modelo vive aqui y no en la lista para que cambiar de seccion y
     /// volver no relea el disco ni pierda lo que hubiera en pantalla.
     @State private var modeloDeAlarmas: ModeloDeAlarmas
@@ -26,10 +31,12 @@ public struct NavegacionPrincipal: View {
     /// quieren los `#Preview`. La app pasa el que escribe en disco.
     public init(
         seccion: Seccion = .alarmas,
+        racha: DatosDeRacha = .deMentira,
         modeloDeAlarmas: ModeloDeAlarmas? = nil,
         plan: ModeloDelPlan? = nil
     ) {
         self._seccion = State(initialValue: seccion)
+        self.racha = racha
         self._modeloDeAlarmas = State(initialValue: modeloDeAlarmas ?? .deMentira())
         self._plan = State(initialValue: plan ?? .deMentira)
     }
@@ -50,9 +57,14 @@ public struct NavegacionPrincipal: View {
     private var contenido: some View {
         switch seccion {
         case .alarmas:
-            PantallaListaDeAlarmas(modelo: modeloDeAlarmas, plan: plan) { seccion = .racha }
-        case .racha: PantallaRacha(plan: plan)
-        case .ranking: PantallaRanking(esPro: plan.esPro)
+            PantallaListaDeAlarmas(
+                modelo: modeloDeAlarmas,
+                plan: plan,
+                racha: racha,
+                alIrARacha: { seccion = .racha }
+            )
+        case .racha: PantallaRacha(datos: racha, plan: plan)
+        case .ranking: PantallaRanking()
         }
     }
 }

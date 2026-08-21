@@ -43,6 +43,10 @@ public struct GaleriaDeDiseno: View {
                         Raya()
                         enlace("Ranking", "list.number") { PantallaRanking() }
                         Raya()
+                        enlace("Histórico del ranking", "clock.arrow.circlepath") {
+                            PantallaHistoricoDeRanking()
+                        }
+                        Raya()
                         enlace("Ajustes", "gearshape") { PantallaAjustes() }
                         Raya()
                         enlace("Muro de pago", "bolt") { PantallaMuroDePago() }

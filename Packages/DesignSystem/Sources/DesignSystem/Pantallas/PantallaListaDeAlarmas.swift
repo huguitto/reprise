@@ -26,13 +26,20 @@ public struct PantallaListaDeAlarmas: View {
     /// hoja de edicion.
     private let plan: ModeloDelPlan?
 
+    /// La racha que ensena la tira. Es el mismo dato que pinta `PantallaRacha`,
+    /// y por eso entra por parametro en vez de leerse de `DatosDeMentira`: dos
+    /// lecturas distintas del mismo numero acaban ensenando dos numeros.
+    private let racha: DatosDeRacha
+
     public init(
         modelo: ModeloDeAlarmas? = nil,
         plan: ModeloDelPlan? = nil,
+        racha: DatosDeRacha = .deMentira,
         alIrARacha: (() -> Void)? = nil
     ) {
         self._modelo = State(initialValue: modelo ?? .deMentira())
         self.plan = plan
+        self.racha = racha
         self.alIrARacha = alIrARacha
     }
 
@@ -71,8 +78,7 @@ public struct PantallaListaDeAlarmas: View {
                 }
 
                 Button { alIrARacha?() } label: {
-                    TiraDeRacha(racha: DatosDeMentira.rachaActual,
-                                vidas: DatosDeMentira.vidasRestantes)
+                    TiraDeRacha(racha: racha.racha, vidas: racha.vidas)
                 }
                 .buttonStyle(.plain)
                 .disabled(alIrARacha == nil)

@@ -42,12 +42,31 @@ al despertador se engana a si mismo. Prioriza no dar falsos negativos a alguien
 que **si** esta haciendo el ejercicio: un detector que no cuenta una sentadilla
 real a las 6 de la manana es mucho peor que uno que cuela un movimiento raro.
 
-## Terminado cuando
+## Terminado — cerrado el 21 de agosto de 2026
 
-- En 5 sesiones distintas, 10 sentadillas reales cuentan exactamente 10.
-- Agitar el movil sentado no llega a 10.
-- El detector funciona con el movil en la mano derecha, en la izquierda y con
-  personas de estatura distinta.
+Probado en el iPhone fisico, grabando con `CalibracionView` y reproduciendo las
+grabaciones en el Mac contra `Reproductor`. Las grabaciones estan en
+`Packages/ChallengeKit/Grabaciones/` y `swift test` las vuelve a pasar en cada
+ejecucion.
+
+| Criterio | Estado |
+|---|---|
+| 10 sentadillas reales cuentan exactamente 10 | **Cumplido** en las 2 sesiones grabadas (33 s y 43 s), 10 de 10 las dos |
+| Agitar el movil sentado no llega a 10 | **Cumplido**: se queda en 3, y las 3 caen en los primeros 7 s |
+| 5 sesiones distintas | **No cumplido**: se cerro con 2, por decision del dueno |
+| Mano derecha y mano izquierda | **No probado**: solo mano derecha |
+| Personas de estatura distinta | **No probado**: una sola persona |
+| Los 20 pasos con `CMPedometer` | **No probado en dispositivo** |
+
+Los parametros se quedan en `.porDefecto`: ya aciertan, y el barrido de 525
+combinaciones no discrimina con solo 3 grabaciones —muchos juegos empatan a
+puntuacion 0—, asi que no hay base para tocarlos.
+
+Que implica cerrar aqui: el detector esta validado contra una mano, una persona
+y dos sesiones. Si aparece alguien a quien no le cuenta sus sentadillas, la causa
+mas probable es esa muestra corta, no el algoritmo. La herramienta para volver a
+medir sigue entera en `ChallengeKit`, pero ya no cuelga de la app: hay que
+recolgar `CalibracionView` desde el target para llegar a ella.
 
 ## Trampas que ya conocemos
 

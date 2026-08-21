@@ -64,17 +64,23 @@ struct GrabacionesRealesTests {
     }
 
     @Test(
-        "Hay material suficiente para dar el detector por bueno",
+        "No se pierde el material con el que se cerro el detector",
         .enabled(if: GrabacionesReales.hayGrabaciones)
     )
     func materialSuficiente() {
-        // El criterio del encargo, escrito como test para que no se olvide a
-        // mitad: cinco sesiones y al menos una trampa. Falla a proposito
-        // mientras falte material, porque tener tres grabaciones y creerse
-        // calibrado es peor que no tener ninguna.
+        // Este test pedia cinco sesiones, que es lo que pide el encargo en
+        // `plan-c.md`. El 21 de agosto de 2026 el dueno del producto decidio
+        // cerrar la calibracion con **dos**, despues de ver que las dos contaban
+        // 10 de 10 y que la trampa se quedaba en 3. Queda dicho aqui y en
+        // `plan-c.md` para que nadie lo lea como que el criterio se cumplio.
+        //
+        // Lo que queda vigilado ya no es "hay bastante", sino "no se ha perdido
+        // lo poco que hay": con la calibracion fuera de la app, estas
+        // grabaciones no se pueden volver a hacer sin recolgar `CalibracionView`,
+        // asi que borrarlas es irreversible.
         #expect(
-            GrabacionesReales.sentadillas.count >= 5,
-            "hacen falta 5 sesiones distintas, hay \(GrabacionesReales.sentadillas.count)"
+            GrabacionesReales.sentadillas.count >= 2,
+            "faltan grabaciones de sentadillas, hay \(GrabacionesReales.sentadillas.count)"
         )
         #expect(
             !GrabacionesReales.trampas.isEmpty,

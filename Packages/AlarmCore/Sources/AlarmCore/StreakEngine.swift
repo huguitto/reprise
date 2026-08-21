@@ -64,6 +64,10 @@ public enum StreakEngine {
     /// Aplica el resultado de un dia y devuelve el estado nuevo junto al registro
     /// que hay que guardar. El registro puede diferir del resultado que entra:
     /// un `.fallado` se convierte en `.salvadoPorVida` si quedaba alguna.
+    ///
+    /// El registro es **opcional**: sale `nil` cuando el dia ya estaba contado y
+    /// por tanto no hay nada que escribir. Ver el corte de idempotencia de
+    /// dentro; ese `nil` no es un detalle, es lo que impide pisar el historial.
     public static func apply(
         outcome: DayOutcome,
         on day: Day,
@@ -72,7 +76,7 @@ public enum StreakEngine {
         duration: TimeInterval? = nil,
         to state: StreakState,
         plan: PlanDeSuscripcion
-    ) -> (state: StreakState, record: DayRecord) {
+    ) -> (state: StreakState, record: DayRecord?) {
         var next = refillingLives(state, on: day, plan: plan)
 
         // Idempotencia: si el dia ya se conto, no lo contamos otra vez. Sin esto,
@@ -85,7 +89,15 @@ public enum StreakEngine {
             // gastadas. El recorte por plan caducado no se pierde: entra en la
             // primera resolucion de verdad, y en el acto si es StoreKit quien
             // avisa, via `changingPlan`.
-            return (state, DayRecord(day: day, alarmID: alarmID, challenge: challenge, outcome: outcome, duration: duration))
+            //
+            // Y se devuelve `nil` de registro, no el desenlace que entra. Ese
+            // desenlace es de un dia que ya tiene el suyo guardado, y escribirlo
+            // pisaria el historial: el caso real es dos alarmas el mismo dia —
+            // la primera completada, la segunda empezada y con la app muerta a
+            // mitad. Al arrancar, el rastro huerfano trae `.appTerminada` del
+            // mismo dia; la racha aguanta bien gracias a este corte, pero antes
+            // el calendario acababa pintando un fallo en un dia que si se hizo.
+            return (state, nil)
         }
 
         let resolved: DayOutcome

@@ -1,32 +1,117 @@
 import SwiftUI
 import AlarmCore
-import ChallengeKit
 import AlarmScheduler
 import DesignSystem
 import Persistence
 
 @main
 struct RepRiseApp: App {
-    /// El plan contratado. Sale antes que las alarmas porque ellas lo
-    /// necesitan: es quien decide cuantas pueden estar encendidas.
-    @State private var plan = ModeloDelPlan()
-    /// El almacen se monta una sola vez, aqui, y de el cuelga todo lo que se
-    /// guarda. `Persistence.contenedor` avisa de que construir dos revienta.
-    @State private var modeloDeAlarmas: ModeloDeAlarmas
-
-    init() {
-        let plan = ModeloDelPlan()
-        self._plan = State(initialValue: plan)
-        self._modeloDeAlarmas = State(initialValue: ModeloDeAlarmas(
-            repositorio: Self.almacenDeAlarmas(),
-            programador: Self.programador(),
-            plan: plan
-        ))
-    }
-
     var body: some Scene {
         WindowGroup {
-            RootView(modeloDeAlarmas: modeloDeAlarmas, plan: plan)
+            RootView()
+        }
+    }
+}
+
+/// La raiz de la app: la navegacion de tres secciones, siempre en oscuro.
+/// Exactamente lo que se instala en el telefono de un usuario.
+///
+/// **Ni la racha ni las alarmas son ya de mentira.** Las dos salen de SwiftData,
+/// pasan por `AlarmCore` y se pintan. El ranking sigue siendo estatico, que la
+/// red va en otra rama.
+///
+/// Falta una cosa que no se puede montar desde aqui: **el reto no se alcanza**.
+/// No es un olvido, es que no se visita a voluntad — aparece cuando suena la
+/// alarma, y quien lo arranca es AlarmScheduler. Hasta entonces se mira desde
+/// el muestrario, en Ajustes > Sistema de diseno.
+///
+/// Hasta el 21 de agosto de 2026 colgaba aqui una segunda barra, visible solo en
+/// DEBUG, con la calibracion de sentadillas al lado de la app. Se quito al dar
+/// por cerrada la calibracion. La herramienta no se ha borrado: `CalibracionView`
+/// sigue en `ChallengeKit` y se puede volver a colgar el dia que haya que medir
+/// otra vez —hara falta, porque el detector se cerro con dos sesiones de las
+/// cinco que pedia el encargo.
+struct RootView: View {
+    /// El almacen se monta una sola vez, al arrancar, y de el cuelgan **las dos**
+    /// cosas que escriben en disco. No es una preferencia de estilo:
+    /// `Persistence.contenedor` construye un `ModelContainer` nuevo en cada
+    /// llamada, y dos contenedores sobre el mismo fichero son dos verdades
+    /// distintas del mismo dato.
+    ///
+    /// Si no se puede abrir —el disco lleno, una migracion que revienta— la app
+    /// no puede ensenar ninguna racha, y lo dice en vez de pintar un cero: un
+    /// cero es indistinguible de haber perdido una racha de 200 dias. Y tampoco
+    /// finge guardar alarmas: mas vale una pantalla fea que alguien que se va a
+    /// dormir con una alarma que no existe.
+    @State private var racha: ModeloDeRacha?
+    @State private var alarmas: ModeloDeAlarmas?
+    @State private var falloAlAbrir: String?
+
+    /// El plan contratado. No necesita disco —vive en `UserDefaults` mientras no
+    /// haya StoreKit— asi que se monta antes que nada y sobrevive al fallo del
+    /// almacen.
+    @State private var plan = ModeloDelPlan()
+
+    @Environment(\.scenePhase) private var fase
+
+    var body: some View {
+        contenido
+            .tint(DesignSystem.acento)
+            // RepRise es solo oscura. La paleta ya lo es de por si, pero sin
+            // esto el cromo del sistema —fondo de las hojas, barra de estado,
+            // teclado— seguiria al ajuste del movil y saldria en claro.
+            .preferredColorScheme(.dark)
+            .task { await abrir() }
+            // Al volver del fondo se vuelve a cobrar: la app pudo pasarse la
+            // noche abierta y el dia ya no es el mismo.
+            .onChange(of: fase) { _, nueva in
+                guard nueva == .active, let racha else { return }
+                Task { await racha.arrancar() }
+            }
+            // El plan se puede cambiar sin salir de la app —el muro de pago y
+            // la fila de Ajustes— y la racha lo lleva fotografiado desde que
+            // arranco. Sin esto, quien contrata Pro sigue viendo "las vidas son
+            // de Pro" con los corazones vacios hasta que cierra y vuelve a
+            // abrir. Es `recargar` y no `arrancar` a proposito: cambiar de plan
+            // repinta lo que se ensena, no vuelve a cobrar los dias pasados.
+            .onChange(of: plan.plan) { _, _ in
+                guard let racha else { return }
+                Task { await racha.recargar() }
+            }
+    }
+
+    @ViewBuilder
+    private var contenido: some View {
+        if let racha, let alarmas {
+            if let fallo = racha.fallo {
+                AvisoDeFallo(texto: fallo)
+            } else {
+                NavegacionPrincipal(racha: racha.datos, modeloDeAlarmas: alarmas, plan: plan)
+            }
+        } else if let falloAlAbrir {
+            AvisoDeFallo(texto: falloAlAbrir)
+        } else {
+            // Un parpadeo, no una pantalla: abrir el contenedor es cuestion de
+            // milisegundos. Pintar la navegacion con una racha vacia mientras
+            // tanto seria ensenar un cero que no es verdad.
+            Color.clear.fondoDePantalla()
+        }
+    }
+
+    private func abrir() async {
+        guard racha == nil, falloAlAbrir == nil else { return }
+        do {
+            let almacen = try Persistence.almacen()
+            alarmas = ModeloDeAlarmas(
+                repositorio: almacen,
+                programador: Self.programador(),
+                plan: plan
+            )
+            let nueva = ModeloDeRacha(almacen: almacen)
+            racha = nueva
+            await nueva.arrancar()
+        } catch {
+            falloAlAbrir = "No se ha podido abrir tu racha."
         }
     }
 
@@ -43,117 +128,25 @@ struct RepRiseApp: App {
     private static func programador() -> any AlarmScheduling {
         PreviewAlarmScheduler()
     }
+}
 
-    /// El almacen de disco, o uno que falla siempre si no se puede abrir.
-    ///
-    /// Lo que **no** se hace aqui es caer a un almacen de memoria que finja que
-    /// todo va bien: el usuario pondria su alarma, la veria en la lista, se iria
-    /// a dormir y no sonaria. Con `AlmacenRoto` cada intento devuelve error y la
-    /// lista lo dice en pantalla, que es feo pero es verdad.
-    private static func almacenDeAlarmas() -> any AlarmRepository {
-        do {
-            return try Persistence.almacen()
-        } catch {
-            return AlmacenRoto()
+/// Lo minimo para no mentir. No es una pantalla de error con diseno propio: es
+/// el hueco donde iria una el dia que haya mas de un fallo que contar.
+private struct AvisoDeFallo: View {
+    let texto: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 32))
+            Text(texto)
+            Text("Cierra la app y vuelve a abrirla. Tu racha sigue guardada.")
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .opacity(0.7)
         }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .fondoDePantalla()
     }
 }
-
-/// El sustituto cuando no se puede abrir el fichero de SwiftData. No guarda
-/// nada y no lo disimula.
-private struct AlmacenRoto: AlarmRepository {
-    struct NoHayAlmacen: Error {}
-
-    func all() async throws -> [Alarm] { throw NoHayAlmacen() }
-    func save(_ alarm: Alarm) async throws { throw NoHayAlmacen() }
-    func delete(id: Alarm.ID) async throws { throw NoHayAlmacen() }
-}
-
-/// La raiz de la app.
-///
-/// En Release es la app y nada mas. En desarrollo lleva colgada ademas la
-/// calibracion de sentadillas, que es la unica forma de llegar a esa herramienta
-/// desde un iPhone de verdad.
-struct RootView: View {
-    let modeloDeAlarmas: ModeloDeAlarmas
-    let plan: ModeloDelPlan
-
-    var body: some View {
-        #if DEBUG
-        RaizConHerramientas(modeloDeAlarmas: modeloDeAlarmas, plan: plan)
-        #else
-        AppSola(modeloDeAlarmas: modeloDeAlarmas, plan: plan)
-        #endif
-    }
-}
-
-/// La navegacion de tres secciones, siempre en oscuro: exactamente lo que se
-/// instala en el telefono de un usuario.
-///
-/// Lo que se ve al abrir ya es la forma final —Alarmas, Racha y Ranking abajo,
-/// Ajustes y Pro en hoja—. **Las alarmas ya son de verdad**: se crean, se
-/// editan, se borran y sobreviven a cerrar la app, contra `Persistence`. Racha
-/// y ranking siguen con datos de mentira.
-///
-/// Lo que todavia NO pasa: **no suena nada a la hora**. El ciclo entero de
-/// programar y cancelar esta puesto y funcionando, pero contra
-/// `PreviewAlarmScheduler`, que lleva la cuenta en memoria y no pone ninguna
-/// alarma en iOS. Falta el entitlement de AlarmKit; ver `RepRiseApp.programador()`.
-///
-/// Falta una cosa que no se puede montar desde aqui: **el reto no se alcanza**.
-/// No es un olvido, es que no se visita a voluntad — aparece cuando suena la
-/// alarma, y quien lo arranca es AlarmScheduler. Hasta entonces se mira desde
-/// el muestrario, en Ajustes > Sistema de diseno.
-struct AppSola: View {
-    let modeloDeAlarmas: ModeloDeAlarmas
-    let plan: ModeloDelPlan
-
-    var body: some View {
-        NavegacionPrincipal(modeloDeAlarmas: modeloDeAlarmas, plan: plan)
-            .tint(DesignSystem.acento)
-            // RepRise es solo oscura. La paleta ya lo es de por si, pero sin
-            // esto el cromo del sistema —fondo de las hojas, barra de estado,
-            // teclado— seguiria al ajuste del movil y saldria en claro.
-            .preferredColorScheme(.dark)
-    }
-}
-
-#if DEBUG
-/// La app mas la calibracion de sentadillas, solo en compilaciones de desarrollo.
-///
-/// La calibracion tiene que poder abrirse **en el iPhone de verdad**: en el
-/// simulador no hay CoreMotion, asi que sin llegar a ella desde el telefono no
-/// hay grabaciones, y sin grabaciones los umbrales del detector se quedan en una
-/// hipotesis para siempre.
-///
-/// Va detras de `#if DEBUG` y no en la barra de la app porque la navegacion son
-/// **tres secciones y ninguna mas** (Alarmas · Racha · Ranking, decidido en
-/// `docs/decisiones-producto.md`). Esta pestana del sistema es andamio de
-/// desarrollo, no una cuarta seccion: en Release no se compila.
-///
-/// Contrapartida asumida mientras dure: en desarrollo se ven **dos barras
-/// apiladas**, la de vidrio del `TabView` del sistema debajo de la nuestra de
-/// plastico. Es feo y es a proposito, para que no se confunda con la barra buena.
-///
-/// El sitio limpio para esto es un grupo "Herramientas" dentro de
-/// `GaleriaDeDiseno`, que main ya movio a Ajustes > Sistema de diseno. No se hace
-/// aqui porque esa pantalla vive en `DesignSystem`, que es paquete del agente D:
-/// moverla es suyo. `CalibracionView()` se presenta desde cualquier sitio.
-struct RaizConHerramientas: View {
-    let modeloDeAlarmas: ModeloDeAlarmas
-    let plan: ModeloDelPlan
-
-    var body: some View {
-        TabView {
-            Tab("App", systemImage: "alarm") {
-                AppSola(modeloDeAlarmas: modeloDeAlarmas, plan: plan)
-            }
-            Tab("Calibración", systemImage: "waveform.path.ecg") {
-                CalibracionView()
-            }
-        }
-        .tint(DesignSystem.acento)
-        .preferredColorScheme(.dark)
-    }
-}
-#endif

@@ -37,7 +37,7 @@ struct LimitesDelPlanTests {
                                         to: state, plan: .gratis)
 
         #expect(salida.state.current == 0, "sin vidas, el fallo se cobra entero")
-        #expect(salida.record.outcome == .fallado(.paroSinReto), "y no se puede leer como salvado")
+        #expect(salida.record?.outcome == .fallado(.paroSinReto), "y no se puede leer como salvado")
         #expect(salida.state.best == 30, "el record no se toca")
         #expect(salida.state.diasCompletadosTotales == 30, "lo acumulado tampoco")
     }
