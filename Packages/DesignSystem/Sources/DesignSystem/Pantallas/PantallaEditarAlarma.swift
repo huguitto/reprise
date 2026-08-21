@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 import AlarmCore
 
 /// Crear o editar una alarma.
@@ -8,9 +9,9 @@ import AlarmCore
 /// app. En su lugar, la esfera de la referencia y la regla de su pie.
 public struct PantallaEditarAlarma: View {
     @State private var alarma: Alarm
-    @State private var moviendo: Movimiento = .hora
-    /// Ancho real de la regla, medido. Antes se adivinaba y la hora no salia
-    /// donde apuntaba el dedo; ver `arrastreDeLaRegla`.
+    @State private var moviendo: Manecilla = .hora
+    /// Cuanto mide la regla de verdad. Sin esto el arrastre tendria que
+    /// adivinarlo, y adivinarlo era justo el bug que tenia.
     @State private var anchoDeLaRegla: CGFloat = 0
     @Environment(\.dismiss) private var cerrar
     private let esNueva: Bool
@@ -42,10 +43,13 @@ public struct PantallaEditarAlarma: View {
         alGuardar: ((Alarm) async -> ModeloDeAlarmas.Resultado)? = nil,
         alEliminar: ((Alarm.ID) async -> Void)? = nil
     ) {
-        // Una alarma nueva empieza en blanco: las siete en punto y sin dias.
-        // Heredar la alarma de ejemplo confunde al que la esta creando.
+        // Una alarma nueva sale con la hora que es ahora mismo, no con una hora
+        // inventada. Es de donde se parte casi siempre —"que suene dentro de un
+        // rato", "a esta misma hora manana"— y ademas deja la esfera lista para
+        // empujarla con el dedo desde un sitio que se reconoce. Sin dias: eso si
+        // hay que elegirlo a proposito.
         let inicial = alarma ?? (esNueva
-            ? Alarm(hour: 7, minute: 0, challenge: .pasos)
+            ? Alarm(hour: Self.ahora.hora, minute: Self.ahora.minuto, challenge: .pasos)
             : DatosDeMentira.alarmas[0])
         self._alarma = State(initialValue: inicial)
         self.esNueva = esNueva
@@ -54,9 +58,10 @@ public struct PantallaEditarAlarma: View {
         self.alEliminar = alEliminar
     }
 
-    private enum Movimiento: String, CaseIterable {
-        case hora = "Hora"
-        case minuto = "Minuto"
+    /// La hora del reloj del telefono, partida en dos numeros.
+    private static var ahora: (hora: Int, minuto: Int) {
+        let partes = Calendar.current.dateComponents([.hour, .minute], from: Date())
+        return (partes.hour ?? 7, partes.minute ?? 0)
     }
 
     public var body: some View {
@@ -178,10 +183,14 @@ public struct PantallaEditarAlarma: View {
 
     private var selectorDeHora: some View {
         VStack(spacing: Espacio.amplio) {
-            EsferaDeReloj(hora: alarma.hour, minuto: alarma.minute, diametro: 230)
+            EsferaDeReloj(hora: $alarma.hour, minuto: $alarma.minute,
+                          manecilla: $moviendo, diametro: 230)
 
             VStack(spacing: Espacio.normal) {
-                SelectorSegmentado(opciones: Movimiento.allCases, seleccion: $moviendo) { $0.rawValue }
+                // La esfera y la regla mueven lo mismo y comparten `moviendo`:
+                // coger una bolita cambia el segmento, y el segmento decide que
+                // mueve la regla. Dos mandos, un solo estado.
+                SelectorSegmentado(opciones: Manecilla.allCases, seleccion: $moviendo) { $0.nombre }
                     .frame(maxWidth: 220)
 
                 ReglaHorizontal(progreso: progresoDeLaRegla)
@@ -191,7 +200,19 @@ public struct PantallaEditarAlarma: View {
                         anchoDeLaRegla = ancho
                     }
                     .contentShape(Rectangle())
+                    .onGeometryChange(for: CGFloat.self) { medida in
+                        medida.size.width
+                    } action: { ancho in
+                        anchoDeLaRegla = ancho
+                    }
                     .gesture(arrastreDeLaRegla)
+
+                Text("Arrastra las bolitas de la esfera: la de dentro es la hora, la de fuera los minutos.")
+                    .font(Tipografia.pie)
+                    .foregroundStyle(Paleta.textoTenue)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityHidden(true)
             }
             .padding(.horizontal, Espacio.margen)
         }
@@ -209,13 +230,12 @@ public struct PantallaEditarAlarma: View {
     /// posicion absoluta del dedo, no sobre el desplazamiento, para que no se
     /// acumule error al arrastrar despacio.
     ///
-    /// El ancho viene medido (`anchoDeLaRegla`) y no estimado. Antes se sacaba
-    /// de donde habia caido el dedo la primera vez —`max(startLocation.x + 1,
-    /// 300)`—, y eso hacia dos cosas raras: la hora no era la de la rayita que
-    /// tocabas (en el centro salian las 13:00, no las 12:00) y el recorrido
-    /// cambiaba segun por donde empezaras a arrastrar. Es el mismo ancho con el
-    /// que `ReglaHorizontal` coloca su bolita, asi que ahora dedo y bolita van
-    /// juntos.
+    /// El ancho es el que mide la regla, medido, y es el mismo con el que
+    /// `ReglaHorizontal` coloca su bolita: asi dedo y bolita van juntos. Antes
+    /// se sacaba de donde empezaba el dedo (`startLocation.x`), que no es un
+    /// ancho de nada: empezando por la izquierda el recorrido entero cabia en
+    /// unos pocos puntos y la hora se disparaba a las 23 al primer temblor, y
+    /// en el centro salian las 13:00 en vez de las 12:00.
     private var arrastreDeLaRegla: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { gesto in
@@ -284,9 +304,7 @@ private struct TarjetaDeReto: View {
 }
 
 #Preview("Nueva alarma") {
-    PantallaEditarAlarma(
-        alarma: Alarm(hour: 7, minute: 0, challenge: .sentadillas),
-        esNueva: true
-    )
-    .preferredColorScheme(.dark)
+    // Sin alarma a proposito: asi la vista previa ensena lo que ve de verdad
+    // quien le da al mas, con la hora que sea en este momento.
+    PantallaEditarAlarma(esNueva: true).preferredColorScheme(.dark)
 }
