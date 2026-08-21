@@ -225,7 +225,11 @@ public struct PantallaListaDeAlarmas: View {
                 // El relieve de las filas se sale de su marco: sin este respiro,
                 // la sombra de la primera y la ultima se corta contra el borde
                 // del ScrollView.
-                .padding(.vertical, Espacio.mini)
+                .padding(.top, Espacio.mini)
+                // La barra de secciones flota sobre la lista. Este margen es
+                // mayor que la zona segura inferior para que, al llegar al
+                // final, la ultima alarma pueda quedar entera por encima.
+                .padding(.bottom, Espacio.enorme * 2)
             }
             // Con dos alarmas la lista no rebota como si hubiera algo mas
             // abajo: solo se desplaza cuando de verdad no cabe.
