@@ -61,6 +61,16 @@ depende de frameworks solo-iOS va detras de `#if canImport(...)`.
   desarrollador gratuita y con `NSAlarmKitUsageDescription` en el Info.plist.
   La app monta `SystemAlarmScheduler`. `PreviewAlarmScheduler` sigue estando,
   pero para los `#Preview` y los tests, no como sustituto.
+- **`AlarmManager.schedule` no sabe actualizar.** Programar sobre un `id` que ya
+  esta puesto **falla**: `Error Domain=com.apple.AlarmKit.Alarm Code=0 "(null)"`,
+  sin una palabra mas. Hay que cancelar antes. Aqui se dio por hecho lo
+  contrario durante meses —"programar encima es idempotente"— y era el issue
+  #36: como el modelo reprograma todo lo encendido en cada sincronizacion,
+  fallaba a partir de la segunda de la sesion, el usuario veia "el sistema no ha
+  podido programar la alarma" y la alarma sonaba igual, porque seguia puesta de
+  la primera vez. `SystemAlarmScheduler` lo resuelve con una huella de lo que
+  pidio la ultima vez (`HuellaDeProgramacion.swift`): si nada ha cambiado no
+  toca el sistema, y si ha cambiado cancela antes de poner.
 - **En el simulador no hay CoreMotion.** Usa `SimulatedChallengeDetector`.
 
 ## Tests

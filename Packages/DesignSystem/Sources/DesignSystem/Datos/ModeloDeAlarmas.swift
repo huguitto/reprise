@@ -218,11 +218,13 @@ public final class ModeloDeAlarmas {
 
     /// Deja programado exactamente lo que tiene que sonar, ni mas ni menos.
     ///
-    /// Reprograma todo lo encendido en vez de solo lo que ha cambiado: no hay
-    /// forma de preguntarle al sistema **a que hora** tiene puesta una alarma,
-    /// solo si la tiene, asi que editar la hora de una alarma ya programada no
-    /// se distingue de no haberla tocado. Programar encima es idempotente en las
-    /// dos implementaciones.
+    /// Reprograma todo lo encendido en vez de solo lo que ha cambiado: desde
+    /// aqui no se distingue editar la hora de una alarma ya programada de no
+    /// haberla tocado. Programar encima **tiene** que ser idempotente, y lo es:
+    /// `SystemAlarmScheduler` se guarda que le pidio al sistema de cada alarma
+    /// y no vuelve a tocarla si no ha cambiado nada. Tuvo que aprender a serlo
+    /// —AlarmKit falla al programar sobre un id que ya tiene— y ese era el
+    /// issue #36.
     ///
     /// **Nunca corren dos a la vez.** Cada sincronizacion espera a la anterior.
     /// Aqui entran cuatro caminos distintos —abrir la pantalla, guardar desde la
