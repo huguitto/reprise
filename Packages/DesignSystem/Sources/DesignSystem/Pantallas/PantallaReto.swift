@@ -1,6 +1,26 @@
 import SwiftUI
 import AlarmCore
 
+/// En que punto esta el reto.
+///
+/// Lo decide quien tiene los sensores —la app, con `ChallengeKit`— y aqui solo
+/// se pinta. La pantalla no sabe contar pasos ni sentadillas, y es a proposito:
+/// asi se puede mirar entera desde la galeria y desde los `#Preview`, que es lo
+/// unico que hay sin un iPhone en la mano.
+public enum EstadoDelReto: Sendable, Hashable {
+    /// Contando. Es el estado normal y casi todo el tiempo.
+    case enMarcha
+    /// Objetivo alcanzado: el dial se suelta y la alarma se puede apagar.
+    case completado
+    /// No hay con que contar —sin sensor o sin permiso de movimiento—, con el
+    /// motivo ya escrito para el usuario.
+    ///
+    /// Suelta el dial igual que `completado`. No es generosidad: el reto que el
+    /// telefono no puede medir no lo puede completar nadie, y dejar a alguien
+    /// encerrado con la alarma sonando y sin salida es peor que perder el dia.
+    case sinSensor(String)
+}
+
 /// El reto en curso. La pantalla mas importante de la app y la unica que
 /// rompe las reglas visuales del resto.
 ///
@@ -15,18 +35,51 @@ import AlarmCore
 ///   apartar la vista justo de la cifra que tiene que leer;
 /// - cero adornos. Por decision de producto el unico feedback durante el reto
 ///   es el contador, asi que no hay animos, ni consejos, ni progreso social.
+///
+/// Ese contador es ademas la unica prueba que tiene el usuario de que el sensor
+/// le esta viendo. Por eso cada repeticion que entra da un golpe de cifra y una
+/// vibracion corta: no son adorno, son el acuse de recibo de "ese ha contado".
+/// Sin el, quien lleva diez sentadillas y ve un 4 no sabe si va mal o si la app
+/// esta muerta.
 public struct PantallaReto: View {
     private let reto: ChallengeType
     private let hechos: Int
     private let segundos: Int
+    private let estado: EstadoDelReto
+    private let alApagar: () -> Void
 
-    public init(reto: ChallengeType = .pasos, hechos: Int = 7, segundos: Int = 47) {
+    /// Los valores por defecto son los del muestrario, no los de la app: la
+    /// galeria y los `#Preview` pintan esta pantalla sin nadie que la mueva.
+    /// La app pasa siempre los cuatro.
+    public init(
+        reto: ChallengeType = .pasos,
+        hechos: Int = 7,
+        segundos: Int = 47,
+        estado: EstadoDelReto = .enMarcha,
+        alApagar: @escaping () -> Void = {}
+    ) {
         self.reto = reto
         self.hechos = hechos
         self.segundos = segundos
+        self.estado = estado
+        self.alApagar = alApagar
     }
 
-    private var completado: Bool { hechos >= reto.goal }
+    /// El dial se suelta con el reto hecho y tambien cuando no hay con que
+    /// contarlo. `hechos >= goal` entra aqui para que la galeria siga pudiendo
+    /// ensenar el reto terminado pasando solo la cifra.
+    private var desbloqueado: Bool {
+        switch estado {
+        case .completado, .sinSensor: true
+        case .enMarcha: hechos >= reto.goal
+        }
+    }
+
+    private var roto: Bool {
+        if case .sinSensor = estado { return true }
+        return false
+    }
+
     private var progreso: Double { Double(hechos) / Double(reto.goal) }
 
     /// El cronometro partido en dos: los minutos van apagados y los segundos
@@ -51,14 +104,20 @@ public struct PantallaReto: View {
         .padding(.vertical, Espacio.ancho)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Paleta.retoFondo.ignoresSafeArea())
+        // El acuse de recibo del sensor, por si la cifra se mira de reojo:
+        // un toque corto por repeticion y el de exito al llegar al objetivo.
+        .sensoryFeedback(.impact(weight: .light), trigger: hechos)
+        .sensoryFeedback(.success, trigger: desbloqueado) { antes, ahora in
+            !antes && ahora && !roto
+        }
     }
 
     private var titular: some View {
         VStack(alignment: .leading, spacing: -2) {
-            Text(completado ? "Ya está" : reto.instruccion)
+            Text(tituloPrimeraLinea)
                 .estiloTitular()
                 .foregroundStyle(Paleta.retoTinta)
-            Text(completado ? "puedes apagarla" : "y se calla")
+            Text(tituloSegundaLinea)
                 .estiloTitular()
                 // Gris sobre el fondo del reto, no `textoSuave`: este tiene que
                 // seguir leyendose con los ojos a medio abrir.
@@ -68,12 +127,22 @@ public struct PantallaReto: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var tituloPrimeraLinea: String {
+        if roto { return "No se puede contar" }
+        return desbloqueado ? "Ya está" : reto.instruccion
+    }
+
+    private var tituloSegundaLinea: String {
+        if roto { return "puedes apagarla" }
+        return desbloqueado ? "puedes apagarla" : "y se calla"
+    }
+
     private var contador: some View {
         VStack(spacing: Espacio.amplio) {
             AnilloDeProgreso(
                 progreso: progreso,
                 grosor: 14,
-                colorArco: completado ? Paleta.retoTinta : Paleta.acento,
+                colorArco: desbloqueado ? Paleta.retoTinta : Paleta.acento,
                 colorPista: Paleta.retoApagado
             ) {
                 TextoDeMatriz(
@@ -82,14 +151,27 @@ public struct PantallaReto: View {
                     grosor: 0.72,
                     color: Paleta.retoTinta
                 )
+                // El golpe de cifra: sube un 8% y vuelve. Dura poco mas de un
+                // cuarto de segundo porque a cuatro pasos por segundo, uno mas
+                // largo se solaparia consigo mismo y quedaria un temblor.
+                .keyframeAnimator(initialValue: 1.0, trigger: hechos) { cifra, escala in
+                    cifra.scaleEffect(escala)
+                } keyframes: { _ in
+                    KeyframeTrack(\.self) {
+                        CubicKeyframe(1.08, duration: 0.10)
+                        CubicKeyframe(1.0, duration: 0.16)
+                    }
+                }
             }
             .frame(width: 300, height: 300)
 
-            Text("de \(reto.goal) \(reto.unidad)")
+            Text(roto ? "el móvil no cuenta ahora mismo" : "de \(reto.goal) \(reto.unidad)")
                 .font(Tipografia.rotulo)
                 .tracking(Tipografia.abiertoRotulo)
                 .textCase(.uppercase)
                 .foregroundStyle(Paleta.retoTinta.opacity(0.45))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Espacio.margen)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("\(hechos) de \(reto.goal) \(reto.unidad)"))
@@ -100,11 +182,11 @@ public struct PantallaReto: View {
             HStack(alignment: .firstTextBaseline) {
                 CifraConPrefijo(prefijo: minutos, cifra: restoDeSegundos, tamano: 30)
                 Spacer()
-                Text(completado ? "Arrastra para apagarla" : "No se apaga hasta terminar")
+                Text(desbloqueado ? "Arrastra para apagarla" : "No se apaga hasta terminar")
                     .font(Tipografia.pie)
-                    .foregroundStyle(Paleta.retoTinta.opacity(completado ? 0.75 : 0.4))
+                    .foregroundStyle(Paleta.retoTinta.opacity(desbloqueado ? 0.75 : 0.4))
             }
-            DialDeApagado(desbloqueado: completado)
+            DialDeApagado(desbloqueado: desbloqueado, alApagar: alApagar)
         }
         .padding(.horizontal, Espacio.margen)
     }
@@ -116,6 +198,16 @@ public struct PantallaReto: View {
 }
 
 #Preview("Reto terminado") {
-    PantallaReto(reto: .sentadillas, hechos: 10, segundos: 62)
+    PantallaReto(reto: .sentadillas, hechos: 10, segundos: 62, estado: .completado)
         .preferredColorScheme(.dark)
+}
+
+#Preview("Sin sensor") {
+    PantallaReto(
+        reto: .sentadillas,
+        hechos: 0,
+        segundos: 12,
+        estado: .sinSensor("Sin permiso de movimiento")
+    )
+    .preferredColorScheme(.dark)
 }

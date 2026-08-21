@@ -78,6 +78,40 @@ final class ModeloDeRacha {
         }
     }
 
+    /// El reto de hoy, completado entero. Es lo unico que suma un dia.
+    ///
+    /// Vive aqui y no en `ModeloDeReto` por una razon que no es de estilo: el
+    /// `ResolutorDeDia` es un actor **y tiene que haber uno solo**. Serializa
+    /// las resoluciones para que dos no se pisen, y dos instancias distintas
+    /// sobre el mismo disco no serializan nada: leerian el mismo estado de
+    /// partida y una de las dos escrituras se perderia. El caso es real —al
+    /// arrancar se resuelve el reto huerfano de anoche mientras el de hoy ya
+    /// puede estar en marcha—, asi que el resolutor no sale de esta clase.
+    ///
+    /// Devuelve `false` si no se pudo guardar. Quien llama tiene que enterarse:
+    /// callarselo seria dejar a alguien celebrando un dia que no esta escrito.
+    @discardableResult
+    func completarReto(
+        alarmID: Alarm.ID,
+        reto: ChallengeType,
+        duracion: TimeInterval
+    ) async -> Bool {
+        do {
+            try await resolutor.resolver(
+                .completado,
+                dia: hoy,
+                alarmID: alarmID,
+                challenge: reto,
+                duration: duracion
+            )
+            await recargar()
+            return true
+        } catch {
+            fallo = "No se ha podido guardar tu racha."
+            return false
+        }
+    }
+
     /// Vuelve a leer del disco. Se llama tras resolver un dia.
     func recargar() async {
         let dia = hoy

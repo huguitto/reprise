@@ -1,4 +1,6 @@
 import SwiftUI
+import AlarmCore
+import AlarmScheduler
 
 /// Puerta de entrada al sistema de diseno.
 ///
@@ -36,7 +38,16 @@ public struct GaleriaDeDiseno: View {
                         }
                         Raya()
                         enlace("El reto terminado", "checkmark.circle") {
-                            PantallaReto(reto: .sentadillas, hechos: 10, segundos: 62)
+                            PantallaReto(reto: .sentadillas, hechos: 10, segundos: 62, estado: .completado)
+                        }
+                        Raya()
+                        enlace("El reto sin sensor", "exclamationmark.triangle") {
+                            PantallaReto(
+                                reto: .sentadillas,
+                                hechos: 0,
+                                segundos: 12,
+                                estado: .sinSensor("Sin permiso de movimiento")
+                            )
                         }
                         Raya()
                         enlace("Racha, niveles e insignias", "flame") { PantallaRacha() }
@@ -71,6 +82,14 @@ public struct GaleriaDeDiseno: View {
                         Raya()
                         enlace("Pastillas, cifras e insignias", "rosette") { MuestraDePiezas() }
                     }
+
+                    #if DEBUG
+                    grupo("Pruebas") {
+                        simularAlarma(.pasos)
+                        Raya()
+                        simularAlarma(.sentadillas)
+                    }
+                    #endif
                 }
                 .padding(.vertical, Espacio.amplio)
             }
@@ -90,6 +109,33 @@ public struct GaleriaDeDiseno: View {
                 .padding(.horizontal, Espacio.margen)
         }
     }
+
+    #if DEBUG
+    /// Finge el recado que deja el boton "Hacer el reto" de la alerta del
+    /// sistema, para poder ver el reto de verdad —contando, con el cronometro
+    /// y con el dial— sin esperar a las seis de la manana.
+    ///
+    /// Solo en DEBUG, y a proposito. El reto **no se visita** (decision de
+    /// producto: ponerlo a un toque de distancia seria dar la forma de
+    /// saltarselo), asi que esto no puede existir en lo que se publica. Va por
+    /// el buzon y no llamando a la pantalla directamente para que lo que se
+    /// prueba sea el camino entero, no una maqueta.
+    private func simularAlarma(_ reto: ChallengeType) -> some View {
+        Button {
+            ChallengeInbox.post(
+                ChallengeRequest(alarmID: UUID(), challenge: reto, requestedAt: Date())
+            )
+            cerrar()
+        } label: {
+            FilaDeAjuste(icono: reto.simbolo, titulo: "Simular la alarma · \(reto.nombre)") {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Paleta.textoTenue)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+    #endif
 
     private func enlace<Destino: View>(
         _ titulo: String,
