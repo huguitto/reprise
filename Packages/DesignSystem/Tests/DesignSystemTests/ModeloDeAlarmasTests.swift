@@ -352,6 +352,82 @@ struct ProgramarTests {
 }
 
 @MainActor
+@Suite("Modelo de alarmas · las que suenan")
+struct ActivasTests {
+
+    // Esto es lo que pinta el carrusel de la esfera, y ahi el orden se ve: se
+    // arrastra de una alarma a la siguiente. Si el orden bailara entre
+    // repintados, la de al lado cambiaria sola de un pintado a otro.
+
+    @Test("Van por hora del dia, no por cuando se crearon")
+    func porHora() async throws {
+        let (modelo, _) = modeloDePrueba()
+        // Se guardan al reves de como tienen que salir.
+        await modelo.guardar(Alarm(hour: 9, minute: 0, challenge: .pasos, label: "Tarde"))
+        await modelo.guardar(Alarm(hour: 6, minute: 30, challenge: .pasos, label: "Pronto"))
+        await modelo.guardar(Alarm(hour: 6, minute: 5, challenge: .pasos, label: "Antes"))
+
+        #expect(modelo.activas.map(\.label) == ["Antes", "Pronto", "Tarde"])
+    }
+
+    @Test("Las apagadas no estan")
+    func soloLasEncendidas() async throws {
+        let (modelo, _) = modeloDePrueba()
+        await modelo.guardar(Alarm(hour: 6, minute: 0, challenge: .pasos, label: "Suena"))
+        await modelo.guardar(Alarm(hour: 7, minute: 0, challenge: .pasos,
+                                   label: "No suena", isEnabled: false))
+
+        #expect(modelo.activas.map(\.label) == ["Suena"])
+    }
+
+    @Test("La proxima esta en el pase, aunque no sea la primera")
+    func laProximaEstaEnElPase() async throws {
+        var calendario = Calendar(identifier: .gregorian)
+        calendario.timeZone = TimeZone(identifier: "Europe/Madrid")!
+        let (modelo, _) = modeloDePrueba()
+        #expect(modelo.proxima == nil)
+
+        await modelo.guardar(Alarm(hour: 6, minute: 30, challenge: .pasos, label: "Madrugon"))
+        await modelo.guardar(Alarm(hour: 22, minute: 0, challenge: .pasos, label: "Noche"))
+
+        // A las nueve de la noche la que antes suena es la de las 22:00, pero
+        // el pase sigue yendo por hora del reloj y empieza por la de las 6:30.
+        // Son dos preguntas distintas y aqui se ve: la pantalla no ordena por
+        // `proxima`, la usa para decidir en cual **abrir** el carrusel.
+        let laNueve = calendario.date(from: DateComponents(year: 2026, month: 3, day: 10, hour: 21))!
+        let proxima = modelo.proxima(desde: laNueve, calendario: calendario)
+
+        #expect(proxima?.label == "Noche")
+        #expect(modelo.activas.map(\.label) == ["Madrugon", "Noche"])
+        #expect(modelo.activas.contains { $0.id == proxima?.id })
+    }
+
+    @Test("Dos a la misma hora quedan en un orden fijo, no en el que salga")
+    func empateEstable() async throws {
+        let (modelo, _) = modeloDePrueba()
+        let una = Alarm(hour: 7, minute: 0, challenge: .pasos, label: "Una")
+        let otra = Alarm(hour: 7, minute: 0, challenge: .sentadillas, label: "Otra")
+        await modelo.guardar(una)
+        await modelo.guardar(otra)
+
+        // El desempate es el `id`, y por eso se puede predecir aqui. Sin el,
+        // `sorted` no promete nada con dos elementos que empatan: el pase
+        // podria ensenarlas en un orden hoy y en otro al reabrir la app.
+        let esperado = [una, otra].sorted { $0.id.uuidString < $1.id.uuidString }
+        #expect(modelo.activas.map(\.id) == esperado.map(\.id))
+    }
+
+    @Test("En gratis solo pasa una: no hay carrusel que ensenar")
+    func enGratisSoloUna() async throws {
+        let (modelo, _) = modeloDePrueba(plan: .gratis)
+        await modelo.guardar(Alarm(hour: 6, minute: 0, challenge: .pasos))
+        // La segunda ni entra —la corta el plan—, pero aunque el disco tuviera
+        // dos encendidas de una epoca Pro, lo efectivo deja una sola.
+        #expect(modelo.activas.count <= 1)
+    }
+}
+
+@MainActor
 @Suite("Modelo de alarmas · el plan")
 struct PlanTests {
 

@@ -27,21 +27,21 @@ struct TextosQueCambianTests {
     @Test("Hoy se dice Hoy, y mañana Mañana")
     func hoyYManana() {
         let ahora = fecha(21, hora: 6)
-        #expect(PantallaListaDeAlarmas.cuandoSuena(fecha(21), desde: ahora, calendario: calendario) == "Hoy")
-        #expect(PantallaListaDeAlarmas.cuandoSuena(fecha(22), desde: ahora, calendario: calendario) == "Mañana")
+        #expect(Alarm.diaEnPalabras(fecha(21), desde: ahora, calendario: calendario) == "Hoy")
+        #expect(Alarm.diaEnPalabras(fecha(22), desde: ahora, calendario: calendario) == "Mañana")
     }
 
     @Test("Hoy se calcula desde la fecha indicada, no desde el reloj del sistema")
     func hoyConRelojInyectado() {
         let ahora = fecha(10, 2, hora: 6)
-        #expect(PantallaListaDeAlarmas.cuandoSuena(fecha(10, 2), desde: ahora, calendario: calendario) == "Hoy")
-        #expect(PantallaListaDeAlarmas.cuandoSuena(fecha(11, 2), desde: ahora, calendario: calendario) == "Mañana")
+        #expect(Alarm.diaEnPalabras(fecha(10, 2), desde: ahora, calendario: calendario) == "Hoy")
+        #expect(Alarm.diaEnPalabras(fecha(11, 2), desde: ahora, calendario: calendario) == "Mañana")
     }
 
     @Test("Mas alla de mañana, el nombre del dia")
     func elDiaPorSuNombre() {
         // 24 de agosto de 2026 es lunes.
-        let texto = PantallaListaDeAlarmas.cuandoSuena(fecha(24), desde: fecha(21, hora: 6), calendario: calendario)
+        let texto = Alarm.diaEnPalabras(fecha(24), desde: fecha(21, hora: 6), calendario: calendario)
         #expect(texto == "El lunes")
     }
 

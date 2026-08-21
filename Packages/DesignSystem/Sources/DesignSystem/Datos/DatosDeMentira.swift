@@ -26,6 +26,17 @@ public enum DatosDeMentira {
 
     public static var proximaAlarma: Alarm { alarmas[0] }
 
+    /// Las mismas, todas encendidas. Es lo que hace falta para ver el carrusel
+    /// de la esfera dando vueltas de verdad: con dos alarmas el pase va y
+    /// vuelve entre las mismas dos horas y no se distingue de un parpadeo.
+    public static var alarmasTodasEncendidas: [Alarm] {
+        alarmas.map { alarma in
+            var encendida = alarma
+            encendida.isEnabled = true
+            return encendida
+        }
+    }
+
     // MARK: - Tonos
     //
     // Aqui habia un catalogo de tonos inventado, y era el que leia la hoja de
