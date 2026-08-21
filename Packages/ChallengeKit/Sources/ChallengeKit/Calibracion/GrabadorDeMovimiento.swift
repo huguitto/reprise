@@ -24,15 +24,22 @@ public actor GrabadorDeMovimiento {
     public private(set) var grabando = false
     public private(set) var muestras: [MuestraDeMovimiento] = []
 
-    /// El mismo algoritmo del detector, corriendo sobre el flujo que se graba.
+    /// Los mismos algoritmos del detector, corriendo sobre el flujo que se graba.
     ///
     /// Sale gratis —las muestras ya estan pasando por aqui— y convierte cada
     /// sesion de grabacion en una prueba del detector: la persona hace diez, ve
     /// en pantalla lo que ha contado la app y, si no coinciden, el fichero con la
     /// senal de ese fallo concreto ya esta guardado. Sin esto harian falta dos
     /// sesiones para las dos cosas, y solo hay un iPhone y una persona.
-    private var enVivo: AlgoritmoSentadillas
+    ///
+    /// Corren **los dos a la vez** sobre la misma senal, cueste lo que cueste
+    /// —que son unas pocas multiplicaciones por muestra— porque una grabacion de
+    /// trampa vale para los dos retos y asi una sola sacudida contesta a las dos
+    /// preguntas.
+    private var sentadillasEnVivo: AlgoritmoSentadillas
+    private var pasosEnVivoAlgoritmo: AlgoritmoPasos
     public private(set) var repeticionesEnVivo = 0
+    public private(set) var pasosEnVivo = 0
 
     private let gestor = CMMotionManager()
     private var consumo: Task<Void, Never>?
@@ -40,10 +47,12 @@ public actor GrabadorDeMovimiento {
 
     public init(
         frecuenciaHz: Double = GrabadorDeMovimiento.frecuenciaPorDefecto,
-        parametros: ParametrosSentadilla = .porDefecto
+        parametros: ParametrosSentadilla = .porDefecto,
+        parametrosDePaso: ParametrosPaso = .porDefecto
     ) {
         self.frecuenciaHz = frecuenciaHz
-        self.enVivo = AlgoritmoSentadillas(parametros: parametros)
+        self.sentadillasEnVivo = AlgoritmoSentadillas(parametros: parametros)
+        self.pasosEnVivoAlgoritmo = AlgoritmoPasos(parametros: parametrosDePaso)
     }
 
     public var numeroDeMuestras: Int { muestras.count }
@@ -56,8 +65,10 @@ public actor GrabadorDeMovimiento {
         }
         muestras.removeAll(keepingCapacity: true)
         inicio = nil
-        enVivo.reinicia()
+        sentadillasEnVivo.reinicia()
+        pasosEnVivoAlgoritmo.reinicia()
         repeticionesEnVivo = 0
+        pasosEnVivo = 0
         grabando = true
 
         // `CMDeviceMotion` no es Sendable, asi que del callback solo salen
@@ -101,11 +112,21 @@ public actor GrabadorDeMovimiento {
             gx: muestra.gx, gy: muestra.gy, gz: muestra.gz
         )
         muestras.append(relativa)
-        let salida = enVivo.procesa(
-            t: relativa.t,
-            aceleracionVertical: relativa.aceleracionVertical
-        )
-        repeticionesEnVivo = salida.repeticiones
+        let vertical = relativa.aceleracionVertical
+        repeticionesEnVivo = sentadillasEnVivo
+            .procesa(t: relativa.t, aceleracionVertical: vertical)
+            .repeticiones
+        // Con la gravedad, no sin ella: el veto por giro es parte del contador
+        // y sin pasarla el numero en vivo no seria el mismo que sale al
+        // reproducir la grabacion despues. Que la pantalla y el banco digan lo
+        // mismo es justo para lo que existe esta herramienta.
+        pasosEnVivo = pasosEnVivoAlgoritmo
+            .procesa(
+                t: relativa.t,
+                aceleracionVertical: vertical,
+                gravedad: (relativa.gx, relativa.gy, relativa.gz)
+            )
+            .pasos
     }
 
     /// Para de grabar y devuelve la sesion. `repeticionesReales` es lo que la

@@ -76,6 +76,54 @@ enum Senales {
         return muestras
     }
 
+    /// La aceleracion vertical de una caminata: una oscilacion a la cadencia del
+    /// paso, con un pico por cada pisada.
+    ///
+    /// Va con seno y no con coseno por lo mismo que el agite: arranca parada,
+    /// como arranca una persona de verdad.
+    static func aceleracionDePaso(t: Double, amplitud: Double, cadencia: Double) -> Double {
+        amplitud * sin(2 * Double.pi * cadencia * t)
+    }
+
+    /// `cantidad` pasos seguidos a `cadencia` pasos por segundo.
+    ///
+    /// La amplitud va en m/s^2 de pico y es el parametro interesante: 2 es andar
+    /// normal con el movil en la mano, 0,6 es arrastrar los pies medio dormido, y
+    /// esa diferencia de un factor tres es justo la que tiene que sobrevivir.
+    static func pasos(
+        cantidad: Int,
+        amplitud: Double = 2.0,
+        cadencia: Double = 2.0,
+        preambulo: Double = 1.0,
+        cola: Double = 1.0
+    ) -> [(t: Double, a: Double)] {
+        var muestras: [(t: Double, a: Double)] = []
+        let dt = 1 / frecuenciaHz
+        let caminando = Double(cantidad) / cadencia
+        let total = preambulo + caminando + cola
+        var t = 0.0
+        while t < total {
+            let desdeElInicio = t - preambulo
+            let a = desdeElInicio >= 0 && desdeElInicio < caminando
+                ? aceleracionDePaso(t: desdeElInicio, amplitud: amplitud, cadencia: cadencia)
+                : 0
+            muestras.append((t, a))
+            t += dt
+        }
+        return muestras
+    }
+
+    static func cuentaPasos(
+        _ muestras: [(t: Double, a: Double)],
+        parametros: ParametrosPaso = .porDefecto
+    ) -> Int {
+        var algoritmo = AlgoritmoPasos(parametros: parametros)
+        for m in muestras {
+            _ = algoritmo.procesa(t: m.t, aceleracionVertical: m.a)
+        }
+        return algoritmo.pasos
+    }
+
     static func quieto(segundos: Double) -> [(t: Double, a: Double)] {
         var muestras: [(t: Double, a: Double)] = []
         let dt = 1 / frecuenciaHz
