@@ -109,6 +109,11 @@ struct GuardarTests {
 
     @Test("La proxima es la mas temprana, no la primera de la lista")
     func laProximaEsPorHora() async throws {
+        var calendario = Calendar(identifier: .gregorian)
+        calendario.timeZone = TimeZone(identifier: "Europe/Madrid")!
+        let antesDeAmbas = calendario.date(from: DateComponents(
+            year: 2026, month: 8, day: 21, hour: 5
+        ))!
         let (modelo, _) = modeloDePrueba()
         await modelo.guardar(Alarm(hour: 6, minute: 30, challenge: .pasos, label: "Madrugon"))
         // Puesta despues, asi que va la primera de la lista. Pero suena mas
@@ -116,7 +121,21 @@ struct GuardarTests {
         await modelo.guardar(Alarm(hour: 23, minute: 0, challenge: .pasos, label: "Noche"))
 
         #expect(modelo.alarmas.first?.label == "Noche")
-        #expect(modelo.proxima?.label == "Madrugon")
+        #expect(modelo.proxima(desde: antesDeAmbas, calendario: calendario)?.label == "Madrugon")
+    }
+
+    @Test("Una alarma pendiente hoy gana a otra mas temprana de manana")
+    func hoyGanaAManana() async throws {
+        var calendario = Calendar(identifier: .gregorian)
+        calendario.timeZone = TimeZone(identifier: "Europe/Madrid")!
+        let ahora = calendario.date(from: DateComponents(
+            year: 2026, month: 8, day: 21, hour: 18
+        ))!
+        let (modelo, _) = modeloDePrueba()
+        await modelo.guardar(Alarm(hour: 7, minute: 0, challenge: .pasos, label: "Mañana"))
+        await modelo.guardar(Alarm(hour: 22, minute: 0, challenge: .pasos, label: "Hoy"))
+
+        #expect(modelo.proxima(desde: ahora, calendario: calendario)?.label == "Hoy")
     }
 
     @Test("La proxima ignora las apagadas")

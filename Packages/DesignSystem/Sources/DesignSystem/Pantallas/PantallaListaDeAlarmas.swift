@@ -234,8 +234,10 @@ public struct PantallaListaDeAlarmas: View {
     /// "Hoy", "Mañana" o el nombre del dia. Mas alla de una semana no hace
     /// falta mas detalle: el dia de la semana ya es unico.
     static func cuandoSuena(_ fecha: Date, desde ahora: Date = Date(), calendario: Calendar = .current) -> String {
-        if calendario.isDateInToday(fecha) { return "Hoy" }
-        if calendario.isDateInTomorrow(fecha) { return "Mañana" }
+        let hoy = calendario.startOfDay(for: ahora)
+        let dia = calendario.startOfDay(for: fecha)
+        if dia == hoy { return "Hoy" }
+        if dia == calendario.date(byAdding: .day, value: 1, to: hoy) { return "Mañana" }
         let formato = DateFormatter()
         formato.locale = Locale(identifier: "es_ES")
         formato.dateFormat = "EEEE"
