@@ -37,6 +37,22 @@ public enum Seccion: String, CaseIterable, Identifiable, Sendable {
 /// arriba a la izquierda. Una pieza de vidrio en la parte de abajo rompe la
 /// ilusion, que es lo unico que sostiene este diseno.
 public struct BarraDeSecciones: View {
+    /// Lo que ocupa la capsula por encima del area segura, con su respiro.
+    static let alto: CGFloat = 74
+
+    /// **Lo que tiene que dejar libre por abajo toda pantalla de seccion.**
+    ///
+    /// La barra flota encima del contenido —eso es a proposito, para que la
+    /// lista siga hasta el borde y no quede una franja muerta— pero eso mismo
+    /// hace que lo ultimo de la pantalla acabe debajo. Con un `ScrollView` se
+    /// llega al tope del desplazamiento y no hay forma de sacarlo: paso con
+    /// "Mejor racha", que era invisible del todo.
+    ///
+    /// No basta con la altura de la capsula. Por encima lleva `Espacio.enorme`
+    /// de velo desvanecido, y lo que cae ahi dentro no queda tapado sino algo
+    /// peor: medio borrado, que parece un fallo de pintado. Se le suma.
+    public static let hueco: CGFloat = alto + Espacio.enorme
+
     @Binding private var seleccion: Seccion
     @Namespace private var pozo
 

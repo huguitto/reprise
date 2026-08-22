@@ -39,12 +39,15 @@ public struct PantallaRacha: View {
 
                 numeroGrande
                 nivelYProgreso
+                insignias
                 vidasDelMes
                 calendario
-                insignias
                 marcaPersonal
             }
             .padding(.vertical, Espacio.amplio)
+            // El hueco de la barra de secciones, que flota encima. Sin el,
+            // "Mejor racha" se queda debajo y no se ve ni bajando del todo.
+            .padding(.bottom, BarraDeSecciones.hueco)
         }
         .fondoDePantalla()
         .sheet(isPresented: $mostrarAjustes) { PantallaAjustes(plan: plan) }
