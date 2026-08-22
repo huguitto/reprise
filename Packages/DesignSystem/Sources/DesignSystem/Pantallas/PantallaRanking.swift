@@ -45,8 +45,13 @@ public struct PantallaRanking: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Espacio.amplio) {
+        // Esta pantalla no se desplaza entera: cabe y se queda quieta. Lo unico
+        // que crece sin limite es el top —hoy son ocho, manana son cien— y es
+        // lo unico que lleva `ScrollView`. Asi tu puesto, que es lo que se
+        // viene a mirar, esta siempre en el mismo sitio, y la letra del pie no
+        // se esconde por debajo de una lista larga.
+        GeometryReader { medida in
+            VStack(alignment: .leading, spacing: Espacio.normal) {
                 Cabecera("Ranking", subtitulo: "de \(Self.mesDeLaTemporada())") {
                     Button { mostrarHistorico = true } label: {
                         Image(systemName: "clock.arrow.circlepath")
@@ -63,31 +68,57 @@ public struct PantallaRanking: View {
                 FilaDeRanking(puesto: tuPuesto)
                     .padding(.horizontal, Espacio.margen)
 
-                VStack(alignment: .leading, spacing: Espacio.medio) {
-                    Text(ambito == .mundial ? "Top mundial" : "Top de España")
-                        .estiloRotulo()
-                        .padding(.horizontal, Espacio.mini)
-
-                    VStack(spacing: Espacio.corto) {
-                        ForEach(lista) { puesto in
-                            FilaDeRanking(puesto: puesto)
-                        }
-                    }
-                }
-                .padding(.horizontal, Espacio.margen)
-
-                VStack(alignment: .leading, spacing: Espacio.mini) {
-                    Text("La temporada acaba el \(Self.ultimoDiaDelMes()). Tu récord histórico se guarda aparte.")
-                    Text("Se ven los cien primeros y tu puesto, pagues o no.")
-                }
-                .font(Tipografia.pie)
-                .foregroundStyle(Paleta.textoTenue)
-                .padding(.horizontal, Espacio.margen)
+                top
             }
-            .padding(.vertical, Espacio.amplio)
+            .padding(.top, Espacio.amplio)
+            .frame(width: medida.size.width, height: medida.size.height, alignment: .top)
         }
         .fondoDePantalla()
         .sheet(isPresented: $mostrarHistorico) { PantallaHistoricoDeRanking() }
+    }
+
+    /// Cuanto tarda una fila en desaparecer al colarse debajo del rotulo.
+    ///
+    /// Sin esto la lista se corta contra un canto duro, que es justo lo que no
+    /// hace ninguna otra pantalla: en la de racha lo que se va por abajo se
+    /// apaga contra el velo de la barra. Aqui hace falta el mismo desvanecido
+    /// arriba, porque el rotulo se queda fijo y las filas le pasan por debajo.
+    private static let desvanecido: CGFloat = Espacio.normal
+
+    /// El top de la temporada. Es lo unico que se desplaza, y llega hasta abajo
+    /// del todo: lo ultimo se apaga contra el velo de la barra de secciones, no
+    /// contra un borde.
+    private var top: some View {
+        VStack(alignment: .leading, spacing: Espacio.corto) {
+            Text(ambito == .mundial ? "Top mundial" : "Top de España")
+                .estiloRotulo()
+                .padding(.horizontal, Espacio.margen + Espacio.mini)
+
+            ScrollView {
+                VStack(spacing: Espacio.corto) {
+                    ForEach(lista) { puesto in
+                        FilaDeRanking(puesto: puesto)
+                    }
+                }
+                .padding(.horizontal, Espacio.margen)
+                // Arriba, lo que mide el desvanecido: asi la primera fila, con
+                // la lista quieta, se ve entera y no medio apagada.
+                .padding(.top, Self.desvanecido)
+                // Y abajo, el hueco de la barra, que flota encima. Sin el, el
+                // ultimo puesto no llega a salir nunca del velo.
+                .padding(.bottom, BarraDeSecciones.hueco)
+            }
+            .mask {
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Self.desvanecido)
+                    Color.black
+                }
+            }
+            // Con ocho puestos la lista no rebota como si hubiera algo mas
+            // abajo: solo se desplaza cuando de verdad no cabe.
+            .scrollBounceBehavior(.basedOnSize)
+        }
     }
 }
 
